@@ -1,7 +1,7 @@
-// ➤ I M P O R T S
 const tmi = require('tmi.js');
 require('dotenv').config()
 
+// ➤ S T A R T    B L O C K E D    W O R D S
 const BLOCKED_WORDS = [
     'test',
 ]
@@ -21,6 +21,8 @@ const options = {
 }
 const client = new tmi.Client(options);
 client.connect();
+
+// ➤ C H A N N E L   E V E N T S
 client.on('hosted', (channel, username, viewers, autohost) => {
     onHostedHandler(channel, username, viewers, autohost)
 });
@@ -30,6 +32,8 @@ client.on('raided', (channel, username, viewers) => {
 client.on('subscription', (channel, username, method, message, userstate) => {
     onSubscriptionHandler(channel, username, method, message, userstate)
 });
+
+// CHECK IF MESSAGE WAS SENT BY VIEWER
 client.on('message', (channel, userstate, message, self) => {
     if (self) return;
     if (message.toLowerCase() === 'hello') {
@@ -48,6 +52,7 @@ client.on('message', (channel, userstate, message, self) => {
     let isBroadcaster = channel.slice(1) === userstate.username;
     let ModOnly = isMod || isBroadcaster;
 
+    // START COMMANDS
     switch (message) {
         case '!discord':
             client.say(channel, `@${userstate.username}, This is the server you're looking for https://discord.gg/qrFtuzn7jQ`);
@@ -84,29 +89,29 @@ function addFallCounter() {
 }
 
 // ➤ F U N C T I O N S
+// CHECK BLOCKED WORDS
 let shouldSendMessage = false
 
 function checkTwitchChat(userstate, message, channel) {
     message = message.toLowerCase()
-        // bot checks message
     shouldSendMessage = BLOCKED_WORDS.some(blockedWord => message.includes(blockedWord.toLowerCase()))
-        //bot ignores these UserIDs
-        //bot moderation actions
     if (shouldSendMessage) {
-        // tell user that the message contains a word from the BLOCKED_WORDS list
         client.say(channel, `@${userstate.username}, sorry you're message contained a no no`);
         client.deletemessage(channel, userstate.id)
     }
 }
 
+// ON HOST
 function onHostedHandler(channel, username, viewers) {
     client.say(channel, `Thank you @${username} for the host of ${viewers}!`);
 }
 
+// ON RAID
 function onRaidedHandler(channel, username, viewers) {
     client.say(channel, `THANK YOU @${username} FOR RAIDING WITH ${viewers}!`);
 }
 
+// ON SUB
 function onSubscriptionHandler(channel, username) {
     client.say(channel, `THANK YOU @${username} FOR SUBBING, WELCOME TO THE TRASH CREW!`);
 }
@@ -116,9 +121,10 @@ function StreamTimer() {
     client.action(channel(process.env.CHANNEL_NAME), 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow me on social media');
 }
 setInterval(StreamTimer, 1.2e+6);
-//1.5e+6 = timer goes off every 20 mins
+// 1.5e+6 = timer goes off every 20 mins
+
 function DiscTimer() {
     client.action(channel(process.env.CHANNEL_NAME), 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
 }
 setInterval(DiscTimer, 1.8e+6);
-//1.8e+6 = timer goes off every 30 mins
+// 1.8e+6 = timer goes off every 30 mins
