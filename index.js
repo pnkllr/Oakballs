@@ -43,6 +43,7 @@ const discord = new Discord.Client({
 discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
     console.log('Discord successfully logged in.');
 });
+discord.user.setActivity(`http://twitch.tv/pnkllr`);
 
 // ➤ C H A N N E L   E V E N T S
 Twitch.on('hosted', (channel, username, viewers, autohost) => {
