@@ -1,4 +1,5 @@
 const tmi = require('tmi.js');
+const Discord = require('discord.js');
 require('dotenv').config()
 
 // ➤ S T A R T    B L O C K E D    W O R D S
@@ -7,7 +8,7 @@ const BLOCKED_WORDS = [
 ]
 
 // ➤ S T A R T    O F    B O T   C O D E
-const options = {
+const Twitch = new tmi.Client({
     options: { debug: true, messagesLogLevel: "info" },
     connection: {
         reconnect: true,
@@ -18,32 +19,53 @@ const options = {
         password: process.env.BOT_OAUTH
     },
     channels: [process.env.CHANNEL_NAME]
-}
-const client = new tmi.Client(options);
-client.connect();
+});
+Twitch.connect();
+
+const discord = new Discord.Client({
+    intents: [
+        "GUILDS",
+        "GUILD_MEMBERS",
+        "GUILD_BANS",
+        "GUILD_INTEGRATIONS",
+        "GUILD_WEBHOOKS",
+        "GUILD_INVITES",
+        "GUILD_VOICE_STATES",
+        "GUILD_PRESENCES",
+        "GUILD_MESSAGES",
+        "GUILD_MESSAGE_REACTIONS",
+        "GUILD_MESSAGE_TYPING",
+        "DIRECT_MESSAGES",
+        "DIRECT_MESSAGE_REACTIONS",
+        "DIRECT_MESSAGE_TYPING",
+    ],
+});
+discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
+    console.log('Discord successfully logged in.');
+});
 
 // ➤ C H A N N E L   E V E N T S
-client.on('hosted', (channel, username, viewers, autohost) => {
+Twitch.on('hosted', (channel, username, viewers, autohost) => {
     onHostedHandler(channel, username, viewers, autohost)
 });
-client.on('raided', (channel, username, viewers) => {
+Twitch.on('raided', (channel, username, viewers) => {
     onRaidedHandler(channel, username, viewers)
 });
-client.on('subscription', (channel, username, method, message, userstate) => {
+Twitch.on('subscription', (channel, username, method, message, userstate) => {
     onSubscriptionHandler(channel, username, method, message, userstate)
 });
 
 // CHECK IF MESSAGE WAS SENT BY VIEWER
-client.on('message', (channel, userstate, message, self) => {
+Twitch.on('message', (channel, userstate, message, self) => {
     if (self) return;
     if (message.toLowerCase() === 'hello') {
-        client.say(channel, `@${userstate.username}, hey there!`);
+        Twitch.say(channel, `@${userstate.username}, hey there!`);
     }
     if (message.toLowerCase() === 'back') {
-        client.say(channel, `@${userstate.username}, welcome back`);
+        Twitch.say(channel, `@${userstate.username}, welcome back`);
     }
     if (message.toLowerCase() === '^') {
-        client.say(channel, `^`);
+        Twitch.say(channel, `^`);
     }
 
     checkTwitchChat(userstate, message, channel)
@@ -55,22 +77,22 @@ client.on('message', (channel, userstate, message, self) => {
     // START COMMANDS
     switch (message) {
         case '!discord':
-            client.say(channel, `@${userstate.username}, This is the server you're looking for https://discord.gg/qrFtuzn7jQ`);
+            Twitch.say(channel, `@${userstate.username}, This is the server you're looking for https://discord.gg/qrFtuzn7jQ`);
             break;
         case '!website':
-            client.say(channel, `@${userstate.username}, Don't forget to add it to your bookmarks! https://pnkllr.net`);
+            Twitch.say(channel, `@${userstate.username}, Don't forget to add it to your bookmarks! https://pnkllr.net`);
             break;
         case '!lurk':
-            client.say(channel, `@${userstate.username}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`);
+            Twitch.say(channel, `@${userstate.username}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`);
             break;
         case '!dead':
             if (ModOnly) {
-                client.say(channel, `PnKllr has died ${addDeathCounter()} time(s)`);
+                Twitch.say(channel, `PnKllr has died ${addDeathCounter()} time(s)`);
             }
             break;
         case '!fall':
             if (ModOnly) {
-                client.say(channel, `PnKllr has fallen ${addFallCounter()} time(s)`);
+                Twitch.say(channel, `PnKllr has fallen ${addFallCounter()} time(s)`);
             }
             break;
     }
@@ -96,35 +118,35 @@ function checkTwitchChat(userstate, message, channel) {
     message = message.toLowerCase()
     shouldSendMessage = BLOCKED_WORDS.some(blockedWord => message.includes(blockedWord.toLowerCase()))
     if (shouldSendMessage) {
-        client.say(channel, `@${userstate.username}, sorry you're message contained a no no`);
-        client.deletemessage(channel, userstate.id)
+        Twitch.say(channel, `@${userstate.username}, sorry you're message contained a no no`);
+        Twitch.deletemessage(channel, userstate.id)
     }
 }
 
 // ON HOST
 function onHostedHandler(channel, username, viewers) {
-    client.say(channel, `Thank you @${username} for the host of ${viewers}!`);
+    Twitch.say(channel, `Thank you @${username} for the host of ${viewers}!`);
 }
 
 // ON RAID
 function onRaidedHandler(channel, username, viewers) {
-    client.say(channel, `THANK YOU @${username} FOR RAIDING WITH ${viewers}!`);
+    Twitch.say(channel, `THANK YOU @${username} FOR RAIDING WITH ${viewers}!`);
 }
 
 // ON SUB
 function onSubscriptionHandler(channel, username) {
-    client.say(channel, `THANK YOU @${username} FOR SUBBING, WELCOME TO THE TRASH CREW!`);
+    Twitch.say(channel, `THANK YOU @${username} FOR SUBBING, WELCOME TO THE TRASH CREW!`);
 }
 
 // ➤ T I M E R S
 function StreamTimer() {
-    client.action(channel(process.env.CHANNEL_NAME), 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow me on social media');
+    Twitch.action(channel(process.env.CHANNEL_NAME), 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow me on social media');
 }
 setInterval(StreamTimer, 1.2e+6);
 // 1.5e+6 = timer goes off every 20 mins
 
 function DiscTimer() {
-    client.action(channel(process.env.CHANNEL_NAME), 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
+    Twitch.action(channel(process.env.CHANNEL_NAME), 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
 }
 setInterval(DiscTimer, 1.8e+6);
 // 1.8e+6 = timer goes off every 30 mins
