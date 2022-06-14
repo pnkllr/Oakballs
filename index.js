@@ -1,10 +1,11 @@
 const tmi = require('tmi.js');
-const Discord = require('discord.js');
+const discord = require('discord.js');
 require('dotenv').config()
 
 // ➤ S T A R T    B L O C K E D    W O R D S
 const BLOCKED_WORDS = [
-    'test',
+    'f4f',
+    'follow me',
 ]
 
 // ➤ S T A R T    O F    B O T   C O D E
@@ -22,7 +23,7 @@ const Twitch = new tmi.Client({
 });
 Twitch.connect();
 
-const discord = new Discord.Client({
+const Discord = new discord.Client({
     intents: [
         "GUILDS",
         "GUILD_MEMBERS",
@@ -40,9 +41,9 @@ const discord = new Discord.Client({
         "DIRECT_MESSAGE_TYPING",
     ],
 });
-discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
+Discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
     console.log('Discord successfully logged in.');
-    discord.user.setActivity(`http://twitch.tv/pnkllr`, { type: 'WATCHING' });
+    Discord.user.setActivity(`http://twitch.tv/pnkllr`, { type: 'WATCHING' });
 });
 
 // ➤ C H A N N E L   E V E N T S
@@ -52,8 +53,17 @@ Twitch.on('hosted', (channel, username, viewers, autohost) => {
 Twitch.on('raided', (channel, username, viewers) => {
     onRaidedHandler(channel, username, viewers)
 });
-Twitch.on('subscription', (channel, username, method, message, userstate) => {
-    onSubscriptionHandler(channel, username, method, message, userstate)
+Twitch.on('subscription', (channel, username, message, userstate) => {
+    onSubscriptionHandler(channel, username, message, userstate)
+});
+Twitch.on('resub', (channel, username, message, userstate) => {
+    onResubHandler(channel, username, message, userstate)
+});
+Twitch.on("subgift", (channel, username, recipient, userstate) => {
+    onGiftsubHandler(channel, username, recipient, userstate)
+});
+Twitch.on("submysterygift", (channel, username, numbOfSubs, userstate) => {
+    onMysterysubHandler(channel, username, numbOfSubs, userstate)
 });
 
 // CHECK IF MESSAGE WAS SENT BY VIEWER
@@ -82,6 +92,12 @@ Twitch.on('message', (channel, userstate, message, self) => {
             break;
         case '!website':
             Twitch.say(channel, `@${userstate.username}, Don't forget to add it to your bookmarks! https://pnkllr.net`);
+            break;
+        case '!socials':
+            Twitch.say(channel, `Twitter: PnKllr || IG: PnKllrTV || YouTube: PnKllr`);
+            break;
+        case '!cc':
+            Twitch.say(channel, `Use my Epic Creator Code when you make purchases in the Epic store and Fortnite: PnKllr`);
             break;
         case '!lurk':
             Twitch.say(channel, `@${userstate.username}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`);
@@ -126,22 +142,45 @@ function checkTwitchChat(userstate, message, channel) {
 
 // ON HOST
 function onHostedHandler(channel, username, viewers) {
-    Twitch.say(channel, `Thank you @${username} for the host of ${viewers}!`);
+    Twitch.say(channel, `Really @${username}? You want to share this with ${viewers} other people? Really?`);
 }
 
 // ON RAID
 function onRaidedHandler(channel, username, viewers) {
-    Twitch.say(channel, `THANK YOU @${username} FOR RAIDING WITH ${viewers}!`);
+    Twitch.say(channel, `Oh hey @${username} and their ${viewers} minions o/`);
 }
 
 // ON SUB
 function onSubscriptionHandler(channel, username) {
-    Twitch.say(channel, `THANK YOU @${username} FOR SUBBING, WELCOME TO THE TRASH CREW!`);
+    subchannel = Discord.channels.cache.get('976101213986779166');
+    subchannel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${username}]\`\`\``);
+    Twitch.say(channel, `Oh no! @${username} is wasting money =O`);
+}
+
+// ON RESUB
+function onResubHandler(channel, username, userstate, message) {
+    subchannel = Discord.channels.cache.get('976101213986779166');
+    subchannel.send(`\`\`\`asciidoc\n= x${userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``);
+    Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
+}
+
+// ON GIFT SUB
+function onGiftsubHandler(channel, username, recipient, userstate) {
+    subchannel = Discord.channels.cache.get('976101213986779166');
+    subchannel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
+    Twitch.say(channel, `Im sure they have their own money @${username}`);
+}
+
+// ON MYSTERY GIFT SUB
+function onMysterysubHandler(channel, username, numbOfSubs, userstate) {
+    subchannel = Discord.channels.cache.get('976101213986779166');
+    subchannel.send(`\`\`\`asciidoc\n= ${username} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
+    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${username}`);
 }
 
 // ➤ T I M E R S
 function StreamTimer() {
-    Twitch.say(channel(process.env.CHANNEL_NAME), 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow me on social media');
+    Twitch.say(channel(process.env.CHANNEL_NAME), 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
 }
 setInterval(StreamTimer, 1.2e+6);
 // 1.5e+6 = timer goes off every 20 mins
