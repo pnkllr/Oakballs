@@ -46,6 +46,8 @@ Discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
     Discord.user.setActivity(`http://twitch.tv/pnkllr`, { type: 'WATCHING' });
 });
 
+const subchannel = Discord.channels.cache.get('976101213986779166');
+
 // ➤ C H A N N E L   E V E N T S
 Twitch.on('hosted', (channel, username, viewers, autohost) => {
     onHostedHandler(channel, username, viewers, autohost)
@@ -152,28 +154,24 @@ function onRaidedHandler(channel, username, viewers) {
 
 // ON SUB
 function onSubscriptionHandler(channel, username) {
-    subchannel = Discord.channels.cache.get('976101213986779166');
     subchannel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${username}]\`\`\``);
     Twitch.say(channel, `Oh no! @${username} is wasting money =O`);
 }
 
 // ON RESUB
 function onResubHandler(channel, username, userstate, message) {
-    subchannel = Discord.channels.cache.get('976101213986779166');
     subchannel.send(`\`\`\`asciidoc\n= x${userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``);
     Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 }
 
 // ON GIFT SUB
 function onGiftsubHandler(channel, username, recipient, userstate) {
-    subchannel = Discord.channels.cache.get('976101213986779166');
     subchannel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
     Twitch.say(channel, `Im sure they have their own money @${username}`);
 }
 
 // ON MYSTERY GIFT SUB
 function onMysterysubHandler(channel, username, numbOfSubs, userstate) {
-    subchannel = Discord.channels.cache.get('976101213986779166');
     subchannel.send(`\`\`\`asciidoc\n= ${username} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
     Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${username}`);
 }
