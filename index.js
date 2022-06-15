@@ -178,13 +178,13 @@ function onMysterysubHandler(channel, username, numbOfSubs, userstate) {
 
 // ➤ T I M E R S
 function StreamTimer() {
-    Twitch.say(channel, 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
+    Twitch.say(process.env.CHANNEL_NAME, 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
 }
 setInterval(StreamTimer, 1.2e+6);
 // 1.5e+6 = timer goes off every 20 mins
 
 function DiscTimer() {
-    Twitch.say(channel, 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
+    Twitch.say(process.env.CHANNEL_NAME, 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
 }
 setInterval(DiscTimer, 1.8e+6);
 // 1.8e+6 = timer goes off every 30 mins
