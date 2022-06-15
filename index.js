@@ -1,5 +1,7 @@
 const tmi = require('tmi.js');
 const discord = require('discord.js');
+const fs = require('fs');
+const data = JSON.parse(fs.readFileSync("values.json"));
 require('dotenv').config()
 
 // ➤ S T A R T    B L O C K E D    W O R D S
@@ -106,27 +108,36 @@ Twitch.on('message', (channel, userstate, message, self) => {
             break;
         case '!dead':
             if (ModOnly) {
-                Twitch.say(channel, `PnKllr has died ${addDeathCounter()} time(s)`);
+                data.dead = ++data.dead;
+                fs.writeFileSync("values.json", JSON.stringify(data, null, 4));
+                Twitch.say(channel, `PnKllr has died ${data.dead} time(s)`);
             }
             break;
         case '!fall':
             if (ModOnly) {
-                Twitch.say(channel, `PnKllr has fallen ${addFallCounter()} time(s)`);
+                data.fall = ++data.fall;
+                fs.writeFileSync("values.json", JSON.stringify(data, null, 4));
+                Twitch.say(channel, `PnKllr has fallen ${data.fall} time(s)`);
+            }
+            break;
+        case '!countreset':
+            if (ModOnly) {
+                data.dead = 0;
+                data.fall = 0;
+                fs.writeFileSync("values.json", JSON.stringify(data, null, 4));
+                Twitch.say(channel, `Counters reset to 0!`);
             }
             break;
     }
 });
 
 // ➤ C O U N T E R S
-var deathCounter = 0;
-
 function addDeathCounter() {
-    return deathCounter = deathCounter + 1;
+    return data.dead + 1;
 }
-var fallCounter = 0;
 
 function addFallCounter() {
-    return fallCounter = fallCounter + 1;
+    return data.fall + 1;
 }
 
 // ➤ F U N C T I O N S
