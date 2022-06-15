@@ -131,15 +131,6 @@ Twitch.on('message', (channel, userstate, message, self) => {
     }
 });
 
-// ➤ C O U N T E R S
-function addDeathCounter() {
-    return data.dead + 1;
-}
-
-function addFallCounter() {
-    return data.fall + 1;
-}
-
 // ➤ F U N C T I O N S
 // CHECK BLOCKED WORDS
 let shouldSendMessage = false
