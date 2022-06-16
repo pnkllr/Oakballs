@@ -163,9 +163,6 @@ Twitch.on('message', (channel, userstate, message, self) => {
                 Twitch.say(channel, `Counters reset to 0!`);
             }
             break;
-        case '!dev':
-            Twitch.say(channel, `@${userstate['display-name']} testing username`);
-            break;
     }
 });
 
