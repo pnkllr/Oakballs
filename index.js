@@ -47,7 +47,7 @@ const Discord = new discord.Client({
 });
 Discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
     console.log('Discord successfully logged in.');
-    Discord.user.setActivity(`http://twitch.tv/pnkllr`, { type: 'WATCHING' });
+    Discord.user.setActivity(`http://twitch.tv/pnkllr`, { type: 'STREAMING' });
 });
 
 const trackChannel = Discord.channels.cache.get('976101213986779166');
@@ -180,7 +180,7 @@ function colorChange() {
     Twitch.color(colors[Math.floor(Math.random() * 10)]);
 }
 setInterval(colorChange, 300000);
-//300000 = timer goes off every 5 mins
+// 300000 = timer goes off every 5 mins
 
 // function StreamTimer() {
 //     Twitch.say(process.env.CHANNEL_NAME, 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
