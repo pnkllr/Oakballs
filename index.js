@@ -2,7 +2,7 @@ const tmi = require('tmi.js');
 const discord = require('discord.js');
 const fs = require('fs');
 const data = JSON.parse(fs.readFileSync("values.json"));
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 require('dotenv').config()
 
 // ➤ S T A R T    B L O C K E D    W O R D S //
