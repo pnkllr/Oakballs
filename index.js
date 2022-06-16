@@ -67,46 +67,46 @@ Discord.on('guildMemberRemove', member => {
 // ➤ T W I T C H   C H A N N E L   E V E N T S
 // Hosted
 Twitch.on('hosted', (channel, username, viewers, autohost) => {
-    Twitch.say(channel, `Really @${userstate.displayname}? You want to share this with ${viewers} other people? Really?`);
+    Twitch.say(channel, `Really @${userstate['display-name']}? You want to share this with ${viewers} other people? Really?`);
 });
 
 // Raided
 Twitch.on('raided', (channel, username, viewers) => {
-    Twitch.say(channel, `Oh hey @${userstate.displayname} and their ${viewers} minions o/`);
+    Twitch.say(channel, `Oh hey @${userstate['display-name']} and their ${viewers} minions o/`);
 });
 
 // Sub
 Twitch.on('subscription', (channel, username) => {
-    trackChannel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${userstate.displayname}]\`\`\``);
-    Twitch.say(channel, `Oh no! @${userstate.displayname} is wasting money =O`);
+    trackChannel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${userstate['display-name']}]\`\`\``);
+    Twitch.say(channel, `Oh no! @${userstate['display-name']} is wasting money =O`);
 });
 
 // Resub
 Twitch.on('resub', (channel, username, message, userstate) => {
-    trackChannel.send(`\`\`\`asciidoc\n= x${userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${userstate.displayname}] :: ${message}\`\`\``);
-    Twitch.say(channel, `I guess you didn't learn the first time hey @${userstate.displayname}?`);
+    trackChannel.send(`\`\`\`asciidoc\n= x${userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${userstate['display-name']}] :: ${message}\`\`\``);
+    Twitch.say(channel, `I guess you didn't learn the first time hey @${userstate['display-name']}?`);
 });
 
 // Gift Sub
 Twitch.on("subgift", (channel, username, recipient, userstate) => {
-    trackChannel.send(`\`\`\`asciidoc\n= ${userstate.displayname} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
-    Twitch.say(channel, `Im sure they have their own money @${userstate.displayname}`);
+    trackChannel.send(`\`\`\`asciidoc\n= ${userstate['display-name']} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
+    Twitch.say(channel, `Im sure they have their own money @${userstate['display-name']}`);
 });
 
 // Multible Gift Sub
 Twitch.on("submysterygift", (channel, username, numbOfSubs, userstate) => {
-    trackChannel.send(`\`\`\`asciidoc\n= ${userstate.displayname} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
-    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${userstate.displayname}`);
+    trackChannel.send(`\`\`\`asciidoc\n= ${userstate['display-name']} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${userstate["msg-param-sender-count"]} subs\`\`\``);
+    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${userstate['display-name']}`);
 });
 
 // CHECK IF MESSAGE WAS SENT BY VIEWER
 Twitch.on('message', (channel, userstate, message, self) => {
     if (self) return;
     if (message.toLowerCase() === 'hello') {
-        Twitch.say(channel, `@${userstate.displayname}, hey there!`);
+        Twitch.say(channel, `@${userstate['display-name']}, hey there!`);
     }
     if (message.toLowerCase() === 'back') {
-        Twitch.say(channel, `@${userstate.displayname}, welcome back`);
+        Twitch.say(channel, `@${userstate['display-name']}, welcome back`);
     }
     if (message.toLowerCase() === '^') {
         Twitch.say(channel, `^`);
@@ -121,10 +121,10 @@ Twitch.on('message', (channel, userstate, message, self) => {
     // START COMMANDS
     switch (message) {
         case '!discord':
-            Twitch.say(channel, `@${userstate.displayname}, This is the server you're looking for https://discord.gg/UyQR5m6ACR`);
+            Twitch.say(channel, `@${userstate['display-name']}, This is the server you're looking for https://discord.gg/UyQR5m6ACR`);
             break;
         case '!website':
-            Twitch.say(channel, `@${userstate.displayname}, Don't forget to add it to your bookmarks! https://pnkllr.net`);
+            Twitch.say(channel, `@${userstate['display-name']}, Don't forget to add it to your bookmarks! https://pnkllr.net`);
             break;
         case '!socials':
             Twitch.say(channel, `Twitter: PnKllr || IG: PnKllrTV || YouTube: PnKllr`);
@@ -136,10 +136,10 @@ Twitch.on('message', (channel, userstate, message, self) => {
             Twitch.say(channel, `Use my Epic Creator Code when you make purchases in the Epic store and Fortnite: PnKllr`);
             break;
         case '!lurk':
-            Twitch.say(channel, `@${userstate.displayname}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`);
+            Twitch.say(channel, `@${userstate['display-name']}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`);
             break;
         case '!clip':
-            fetch(`https://pnkllr.net/clipit.php?username=${userstate.displayname}`).then(res => res.text()).then(text => Twitch.say(channel, `Heres the Plunkup @${userstate.displayname} ${text}`));
+            fetch(`https://pnkllr.net/clipit.php?username=${userstate['display-name']}`).then(res => res.text()).then(text => Twitch.say(channel, `Heres the Plunkup @${userstate['display-name']} ${text}`));
             break;
         case '!dead':
             if (ModOnly) {
@@ -162,6 +162,9 @@ Twitch.on('message', (channel, userstate, message, self) => {
                 fs.writeFileSync("values.json", JSON.stringify(data, null, 4));
                 Twitch.say(channel, `Counters reset to 0!`);
             }
+            break;
+        case '!dev':
+            Twitch.say(channel, `@${userstate['display-name']} testing username`);
             break;
     }
 });
