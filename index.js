@@ -28,6 +28,10 @@ const Twitch = new tmi.Client({
 });
 Twitch.connect();
 
+Twitch.on('connect', function(connection) {
+    connection.sendUTF('CAP REQ :twitch.tv/tags twitch.tv/commands');
+});
+
 const Discord = new discord.Client({
     intents: [
         "GUILDS",
@@ -83,7 +87,7 @@ Twitch.on('subscription', (channel, usernotice) => {
 
 // Resub
 Twitch.on('resub', (channel, message, usernotice) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${usernoticee["msg-param-cumulative-months"]} Month Subscriber =\n[${usernotice['display-name']}] :: ${message}\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${usernotice["msg-param-cumulative-months"]} Month Subscriber =\n[${usernotice['display-name']}] :: ${message}\`\`\``) });
     Twitch.say(channel, `I guess you didn't learn the first time hey @${usernotice['display-name']}?`);
 });
 
