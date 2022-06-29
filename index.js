@@ -93,15 +93,15 @@ Twitch.on('resub', (channel, username, months, message, tags, methods) => {
 
 // Gift Sub
 Twitch.on("subgift", (channel, username, streakMonths, recipient, methods, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${streakMonths} subs\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${~~tags['msg-param-sender-count']} subs\`\`\``) });
     //    Twitch.say(channel, `Im sure they have their own money @${tags['msg-param-sender-name']}`);
 });
 
 // Multible Gift Sub
-//Twitch.on("submysterygift", (channel, username, numbOfSubs, methods, tags) => {
-//    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${tags['msg-param-sender-count']} subs\`\`\``) });
-//    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${tags['msg-param-sender-name']}`);
-//});
+Twitch.on("submysterygift", (channel, username, numbOfSubs, methods, tags) => {
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${~~tags['msg-param-sender-count']} subs\`\`\``) });
+    //    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${tags['msg-param-sender-name']}`);
+});
 
 // CHECK IF MESSAGE WAS SENT BY VIEWER
 Twitch.on('message', (channel, userstate, message, self) => {
