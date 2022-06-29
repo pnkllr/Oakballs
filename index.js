@@ -70,35 +70,35 @@ Discord.on('guildMemberRemove', (member) => {
 
 // ➤ T W I T C H   C H A N N E L   E V E N T S
 // Hosted
-Twitch.on('hosted', (channel, tags) => {
-    Twitch.say(channel, `Really @${tags['msg-param-displayName']}? You want to share this with other people? Really?`);
+Twitch.on('hosted', (channel, username, viewers, autohost) => {
+    Twitch.say(channel, `Really @${username}? You want to share this with other people? Really?`);
 });
 
 // Raided
-Twitch.on('raided', (channel, tags) => {
-    Twitch.say(channel, `Oh hey @${tags['msg-param-displayName']} and their ${tags['msg-param-viewerCount']} minions o/`);
+Twitch.on('raided', (channel, username, viewers) => {
+    Twitch.say(channel, `Oh hey @${username} and their ${viewers} minions o/`);
 });
 
 // Sub
-Twitch.on('subscription', (channel, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${tags['display-name']}]\`\`\``) });
+Twitch.on('subscription', (channel, username, method, message, tags) => {
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${username}]\`\`\``) });
     Twitch.say(channel, `Oh no! @${userstate['display-name']} is wasting money =O`);
 });
 
 // Resub
-Twitch.on('resub', (channel, message, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${tags["msg-param-cumulative-months"]} Month Subscriber =\n[${tags['display-name']}] :: ${message}\`\`\``) });
-    Twitch.say(channel, `I guess you didn't learn the first time hey @${tags['display-name']}?`);
+Twitch.on('resub', (channel, username, months, message, tags, methods) => {
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${tags["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
+    Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
 
 // Gift Sub
-Twitch.on("subgift", (channel, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${tags['msg-param-sender-name']} Gifted a Sub  =\n[${tags['msg-param-recipient-display-name']}]\n\nThey have gifted a total of ${tags['msg-param-sender-count']} subs\`\`\``) });
+Twitch.on("subgift", (channel, username, streakMonths, recipient, methods, tags) => {
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${tags['msg-param-sender-name']} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${tags['msg-param-sender-count']} subs\`\`\``) });
     Twitch.say(channel, `Im sure they have their own money @${tags['msg-param-sender-name']}`);
 });
 
 // Multible Gift Sub
-Twitch.on("submysterygift", (channel, tags) => {
+Twitch.on("submysterygift", (channel, username, numbOfSubs, methods, tags) => {
     Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${tags['msg-param-sender-name']} Gifted ${tags['msg-param-gift-months']} Subs =\nThey have gifted a total of ${tags['msg-param-sender-count']} subs\`\`\``) });
     Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${tags['msg-param-sender-name']}`);
 });
