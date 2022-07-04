@@ -87,21 +87,21 @@ Twitch.on('subscription', (channel, username, method, message, tags) => {
 
 // Resub
 Twitch.on('resub', (channel, username, months, message, tags, methods) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${months} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${~~userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
     Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
 
 // Gift Sub
 Twitch.on("subgift", (channel, username, streakMonths, recipient, methods, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}]\n\nThey have gifted a total of ${~~tags['msg-param-sender-count']} subs\`\`\``) });
-    //    Twitch.say(channel, `Im sure they have their own money @${tags['msg-param-sender-name']}`);
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}] :: ${streakMonths} Months Total\`\`\``) });
+    Twitch.say(channel, `Im sure they have their own money @${username}`);
 });
 
 // Multible Gift Sub
-Twitch.on("submysterygift", (channel, username, numbOfSubs, methods, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted ${numbOfSubs} Subs =\nThey have gifted a total of ${~~tags['msg-param-sender-count']} subs\`\`\``) });
-    //    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${tags['msg-param-sender-name']}`);
-});
+//Twitch.on("submysterygift", (channel, username, numbOfSubs, methods, tags) => {
+//    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted ${numbOfSubs} Subs =\`\`\``) });
+//    Twitch.say(channel, `While im sure they have their own money, its no doubt you are now broke @${username}`);
+//});
 
 // CHECK IF MESSAGE WAS SENT BY VIEWER
 Twitch.on('message', (channel, userstate, message, self) => {
