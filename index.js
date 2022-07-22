@@ -11,8 +11,6 @@ const BLOCKED_WORDS = [
     'follow me',
 ]
 
-const colors = ["SpringGreen", "Blue", "Chocolate", "Red", "Coral", "Firebrick", "OrangeRed", "SeaGreen", "Green", "HotPink"];
-
 // ➤ S T A R T    O F    B O T   C O D E //
 const Twitch = new tmi.Client({
     options: { debug: true, messagesLogLevel: "info" },
@@ -190,20 +188,23 @@ function checkTwitchChat(userstate, message, channel) {
 }
 
 // ➤ T I M E R S
+const colors = ["SpringGreen", "Blue", "Chocolate", "Red", "Coral", "Firebrick", "OrangeRed", "SeaGreen", "Green", "HotPink"];
+
 function colorChange() {
     Twitch.color(colors[Math.floor(Math.random() * 10)]);
 }
 setInterval(colorChange, 300000);
 // 300000 = timer goes off every 5 mins
 
-function StreamTimer() {
-    Twitch.say(process.env.CHANNEL_NAME, 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
-}
-setInterval(StreamTimer, 1.2e+6);
-// 1.5e+6 = timer goes off every 20 mins
+const timers = ["Enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media.",
+    "Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ",
+    "Check out our Wick'd Geek Collection! https://wickdgeek.com",
+    "See something dumb on stream? Use !clip to capture it!",
+    "To view a list of commands, use !commands"
+];
 
 function DiscTimer() {
-    Twitch.say(process.env.CHANNEL_NAME, 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
+    Twitch.say(process.env.CHANNEL_NAME, timers[Math.floor(Math.random() * 5)]);
 }
 setInterval(DiscTimer, 1.8e+6);
 // 1.8e+6 = timer goes off every 30 mins
