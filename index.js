@@ -124,6 +124,9 @@ Twitch.on('message', (channel, userstate, message, self) => {
 
     // START COMMANDS
     switch (message) {
+        case '!commands':
+            Twitch.say(channel, `[ !discord | !website | !socials | !gt | !cc | !lurk | !clip | !wickd | !dead | !fall | !countreset ]`);
+            break;
         case '!discord':
             Twitch.say(channel, `@${userstate['display-name']}, This is the server you're looking for https://discord.gg/UyQR5m6ACR`);
             break;
@@ -144,6 +147,9 @@ Twitch.on('message', (channel, userstate, message, self) => {
             break;
         case '!clip':
             fetch(`https://pnkllr.net/clipit.php?username=${userstate['display-name']}`).then(res => res.text()).then(text => Twitch.say(channel, `Heres the Plunkup @${userstate['display-name']} ${text}`));
+            break;
+        case '!wickd':
+            Twitch.say(channel, `Check out our range of Wick'd Geek gear at https://wickdgeek.com. Us coupon: Twitch for 5% off`);
             break;
         case '!dead':
             if (ModOnly) {
@@ -190,14 +196,14 @@ function colorChange() {
 setInterval(colorChange, 300000);
 // 300000 = timer goes off every 5 mins
 
-// function StreamTimer() {
-//     Twitch.say(process.env.CHANNEL_NAME, 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
-// }
-// setInterval(StreamTimer, 1.2e+6);
+function StreamTimer() {
+    Twitch.say(process.env.CHANNEL_NAME, 'enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media');
+}
+setInterval(StreamTimer, 1.2e+6);
 // 1.5e+6 = timer goes off every 20 mins
-// 
-// function DiscTimer() {
-//     Twitch.say(process.env.CHANNEL_NAME, 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
-// }
-// setInterval(DiscTimer, 1.8e+6);
+
+function DiscTimer() {
+    Twitch.say(process.env.CHANNEL_NAME, 'enjoying talking here? Continue the conversation over on Discord! https://discord.gg/qrFtuzn7jQ');
+}
+setInterval(DiscTimer, 1.8e+6);
 // 1.8e+6 = timer goes off every 30 mins
