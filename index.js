@@ -85,7 +85,7 @@ Twitch.on('subscription', (channel, username, method, message, tags) => {
 
 // Resub
 Twitch.on('resub', (channel, username, months, message, tags, methods) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${months} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
     Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
 
@@ -132,7 +132,7 @@ Twitch.on('message', (channel, userstate, message, self) => {
             Twitch.say(channel, `@${userstate['display-name']}, Don't forget to add it to your bookmarks! https://pnkllr.net`);
             break;
         case '!socials':
-            Twitch.say(channel, `Twitter: PnKllr || IG: PnKllrTV || YouTube: PnKllr`);
+            Twitch.say(channel, `Twitter: PnKllr || YouTube: PnKllr`);
             break;
         case '!gt':
             Twitch.say(channel, `PnKllr || PnKllrTV`);
