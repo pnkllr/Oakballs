@@ -85,7 +85,7 @@ Twitch.on('subscription', (channel, username, method, message, tags) => {
 
 // Resub
 Twitch.on('resub', (channel, username, months, message, tags, methods) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${~~userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${months} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
     Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
 
