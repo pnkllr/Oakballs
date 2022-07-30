@@ -85,13 +85,13 @@ Twitch.on('subscription', (channel, username, method, message, tags) => {
 
 // Resub
 Twitch.on('resub', (channel, username, months, message, tags, methods) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${userstate["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= x${tags["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``) });
     Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
 
 // Gift Sub
 Twitch.on("subgift", (channel, username, streakMonths, recipient, methods, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}] :: ${streakMonths} Months Total\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}] :: ${tags["msg-param-gift-months"]} Months Total\`\`\``) });
     Twitch.say(channel, `Im sure they have their own money @${username}`);
 });
 
