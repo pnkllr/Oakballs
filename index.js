@@ -50,7 +50,7 @@ const Discord = new discord.Client({
 });
 Discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
     console.log('Discord successfully logged in.');
-    Discord.user.setActivity(`https://twitch.tv/pnkllr`, { type: 'STREAMING' });
+    Discord.user.setActivity(`TTV: PnKllr`, { type: 'STREAMING', url: 'https://twitch.tv/pnkllr' });
 });
 
 const trackChannel = '976101213986779166';
@@ -80,7 +80,7 @@ Twitch.on('raided', (channel, username, viewers) => {
 // Sub
 Twitch.on('subscription', (channel, username, method, message, tags) => {
     Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${username}]\`\`\``) });
-    Twitch.say(channel, `Oh no! @${userstate['display-name']} is wasting money =O`);
+    Twitch.say(channel, `Oh no! @${username} is wasting money =O`);
 });
 
 // Resub
