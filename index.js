@@ -91,7 +91,7 @@ Twitch.on('resub', (channel, username, months, message, tags, methods) => {
 
 // Gift Sub
 Twitch.on("subgift", (channel, username, streakMonths, recipient, methods, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}] :: ${tags["msg-param-gift-months"]} Months Total\`\`\``) });
+    Discord.channels.fetch(trackChannel).then(channel => { channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}] :: ${~tags["msg-param-gift-months"]} Months Total\`\`\``) });
     Twitch.say(channel, `Im sure they have their own money @${username}`);
 });
 
