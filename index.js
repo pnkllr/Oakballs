@@ -4,6 +4,22 @@ const fs = require('fs/promises'); // Use fs.promises for async file handling
 const fetch = require('node-fetch');
 require('dotenv').config();
 
+// Initialize 'data' by reading from values.json, or default to 0 if the file doesn't exist
+let data = { dead: 0, fall: 0 };
+
+async function loadData() {
+    try {
+        const fileData = await fs.readFile('values.json', 'utf8');
+        data = JSON.parse(fileData); // Load saved data from file
+    } catch (err) {
+        console.log("No saved data found, initializing with defaults.");
+        await fs.writeFile('values.json', JSON.stringify(data, null, 4)); // Create the file if it doesn't exist
+    }
+}
+
+// Load data at the start
+loadData();
+
 // ➤ S T A R T    B L O C K E D    W O R D S //
 const BLOCKED_WORDS = ['f4f', 'follow me'].map(w => w.toLowerCase());
 
@@ -148,14 +164,14 @@ async function handleTwitchMessage(channel, userstate, message, self) {
         '!dead': async () => {
             if (isModOrBroadcaster) {
                 data.dead = ++data.dead;
-                await fs.writeFile("values.json", JSON.stringify(data, null, 4));
+                await fs.writeFile('values.json', JSON.stringify(data, null, 4)); // Save data to file
                 return `PnKllr has died ${data.dead} time(s)`;
             }
         },
         '!fall': async () => {
             if (isModOrBroadcaster) {
                 data.fall = ++data.fall;
-                await fs.writeFile("values.json", JSON.stringify(data, null, 4));
+                await fs.writeFile('values.json', JSON.stringify(data, null, 4)); // Save data to file
                 return `PnKllr has fallen ${data.fall} time(s)`;
             }
         },
@@ -163,7 +179,7 @@ async function handleTwitchMessage(channel, userstate, message, self) {
             if (isModOrBroadcaster) {
                 data.dead = 0;
                 data.fall = 0;
-                await fs.writeFile("values.json", JSON.stringify(data, null, 4));
+                await fs.writeFile('values.json', JSON.stringify(data, null, 4)); // Save reset data
                 return `Counters reset to 0!`;
             }
         },
