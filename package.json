@@ -1,12 +1,13 @@
 {
     "dependencies": {
-    "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5",
-    "tmi.js": "^1.8.5"
-  },
+        "discord.js": "^13.8.0",
+        "dotenv": "^16.0.1",
+        "node-fetch": "^2.6.7",
+        "tmi.js": "^1.8.5"
+    },
     "devDependencies": {
-    "nodemon": "^3.1.7"
-  },
+        "@types/tmi.js": "^1.8.1"
+    },
     "name": "oakballs",
     "version": "1.0.0",
     "main": "index.js",
