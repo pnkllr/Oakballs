@@ -53,7 +53,7 @@ Discord.login(process.env.DISCORD_BOT_TOKEN).then(() => {
     Discord.user.setActivity(`TTV: PnKllr`, { type: 'STREAMING', url: 'https://twitch.tv/pnkllr' });
 });
 
-const trackChannel = '976101213986779166';
+const trackChannel = '1403975109735350395';
 
 // ➤ D I S C O R D   E V E N T S
 // Member Joins
