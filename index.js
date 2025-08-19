@@ -86,24 +86,24 @@ Twitch.on('raided', (channel, username, viewers) => {
 });
 
 // Sub
-Twitch.on('subscription', (channel, username, method, message, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => { 
-        channel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${username}]\`\`\``); 
+Twitch.on('subscription', async (channel, username, method, message, tags) => {
+    await Discord.channels.fetch(trackChannel).then(channel => {
+        channel.send(`\`\`\`asciidoc\n= New Subscriber =\n[${username}]\`\`\``);
     });
     Twitch.say(channel, `Oh no! @${username} is wasting money =O`);
 });
 
 // Resub
-Twitch.on('resub', (channel, username, months, message, tags, methods) => {
-    Discord.channels.fetch(trackChannel).then(channel => {
+Twitch.on('resub', async (channel, username, months, message, tags, methods) => {
+    await Discord.channels.fetch(trackChannel).then(channel => {
         channel.send(`\`\`\`asciidoc\n= x${tags["msg-param-cumulative-months"]} Month Subscriber =\n[${username}] :: ${message}\`\`\``);
     });
     Twitch.say(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
 
 // Gift Sub
-Twitch.on("subgift", (channel, username, streakMonths, recipient, methods, tags) => {
-    Discord.channels.fetch(trackChannel).then(channel => {
+Twitch.on("subgift", async (channel, username, streakMonths, recipient, methods, tags) => {
+    await Discord.channels.fetch(trackChannel).then(channel => {
         channel.send(`\`\`\`asciidoc\n= ${username} Gifted a Sub  =\n[${recipient}] :: ${~tags["msg-param-gift-months"]} Months Total\`\`\``);
     });
     Twitch.say(channel, `Im sure they have their own money @${username}`);
@@ -145,21 +145,21 @@ async function handleTwitchMessage(channel, userstate, message, self) {
             return `Heres the Plunkup @${userstate['display-name']} ${text}`;
         },
         '!wickd': () => `Check out our range of Wick'd Geek gear at https://wickdgeek.com. Use coupon: Twitch for 5% off`,
-        '!dead': () => {
+        '!dead': async () => {
             if (isModOrBroadcaster) {
                 data.dead = ++data.dead;
                 await fs.writeFile("values.json", JSON.stringify(data, null, 4));
                 return `PnKllr has died ${data.dead} time(s)`;
             }
         },
-        '!fall': () => {
+        '!fall': async () => {
             if (isModOrBroadcaster) {
                 data.fall = ++data.fall;
                 await fs.writeFile("values.json", JSON.stringify(data, null, 4));
                 return `PnKllr has fallen ${data.fall} time(s)`;
             }
         },
-        '!countreset': () => {
+        '!countreset': async () => {
             if (isModOrBroadcaster) {
                 data.dead = 0;
                 data.fall = 0;
@@ -194,7 +194,7 @@ const colors = ["SpringGreen", "Blue", "Chocolate", "Red", "Coral", "Firebrick",
 
 function colorChange() {
     const color = colors[Math.floor(Math.random() * colors.length)];
-    Twitch.say(process.env.CHANNEL_NAME, `/color ${color}`);
+    Twitch.say(channel, `/color ${color}`);
     console.log(`Changed color to ${color}`);
 }
 setInterval(colorChange, 300000); // 300000 = timer goes off every 5 mins
