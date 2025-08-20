@@ -12,8 +12,11 @@ const fetch = require('node-fetch');
 // Config
 // --------------------------
 const TRACK_CHANNEL_ID = process.env.TRACK_CHANNEL_ID || '1403975109735350395';
-const TWITCH_CHANNEL_NAME = process.env.CHANNEL_NAME.replace(/^#/, '');
+
+// Make CHANNEL_NAME robust (strip leading '#', allow fallback)
+const TWITCH_CHANNEL_NAME = ((process.env.CHANNEL_NAME || '').replace(/^#/, '').trim()) || 'pnkllr';
 const TWITCH_CHANNEL = `#${TWITCH_CHANNEL_NAME}`;
+
 const DATA_FILE = path.resolve(__dirname, 'values.json');
 const BLOCKED_WORDS = ['f4f', 'follow me'];
 
@@ -43,6 +46,58 @@ function saveData(next = data) {
 }
 
 // --------------------------
+// Twitch Helix (for viewer count)
+// --------------------------
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
+
+let _twitchAppToken = null;
+let _twitchAppTokenExpiry = 0;
+
+async function getTwitchAppToken() {
+  const now = Date.now();
+  if (_twitchAppToken && now < _twitchAppTokenExpiry - 60_000) {
+    return _twitchAppToken; // not expiring within 60s
+  }
+  const url = `https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(TWITCH_CLIENT_ID)}&client_secret=${encodeURIComponent(TWITCH_CLIENT_SECRET)}&grant_type=client_credentials`;
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) throw new Error(`Twitch token HTTP ${res.status}`);
+  const data = await res.json();
+  _twitchAppToken = data.access_token;
+  _twitchAppTokenExpiry = Date.now() + (data.expires_in * 1000);
+  return _twitchAppToken;
+}
+
+async function getViewerCount(loginName) {
+  try {
+    if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+      // Missing creds; skip gracefully
+      return null;
+    }
+    const token = await getTwitchAppToken();
+    const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(loginName)}`, {
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (res.status === 401) { // token invalid/expired; refresh once
+      _twitchAppToken = null;
+      return getViewerCount(loginName);
+    }
+    if (!res.ok) throw new Error(`Helix streams HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.data && json.data.length > 0) {
+      return Number(json.data[0].viewer_count) || 0;
+    }
+    return 0; // offline
+  } catch (err) {
+    console.warn('getViewerCount error:', err?.message || err);
+    return null; // keep previous / don’t block
+  }
+}
+
+// --------------------------
 // Discord (v13)
 // --------------------------
 const Discord = new Client({
@@ -57,10 +112,45 @@ const Discord = new Client({
 
 let trackedChannel = null;
 
+// ---------- Activity Rotation ----------
+function buildActivities(viewers) {
+  const v = (typeof viewers === 'number' && viewers >= 0) ? viewers : null;
+
+  const base = [
+    { name: 'with the chat', type: 'PLAYING' },
+    { name: 'coding Oakballs', type: 'WATCHING' },
+    { name: 'lofi beats', type: 'LISTENING' },
+    { name: 'FPS mayhem', type: 'COMPETING' }
+  ];
+
+  const streamName = v === null
+    ? 'TTV: PnKllr'
+    : `TTV: PnKllr | ${v} viewer${v === 1 ? '' : 's'}`;
+
+  base.push({ name: streamName, type: 'STREAMING', url: 'https://twitch.tv/pnkllr' });
+  return base;
+}
+
+async function setRandomDiscordActivity() {
+  const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
+  const activities = buildActivities(viewers);
+  const pick = activities[(Math.random() * activities.length) | 0];
+  try {
+    Discord.user.setActivity(pick);
+  } catch (e) {
+    console.warn('setActivity error:', e?.message || e);
+  }
+}
+
 Discord.once('ready', async () => {
   console.log(`Discord logged in as ${Discord.user.tag}`);
-  // v13 accepts string activity type:
-  Discord.user.setActivity('TTV: PnKllr', { type: 'STREAMING', url: 'https://twitch.tv/pnkllr' });
+
+  // Initial status right away
+  await setRandomDiscordActivity();
+
+  // Rotate every 5 minutes
+  setInterval(setRandomDiscordActivity, 300_000);
+
   try {
     trackedChannel = await Discord.channels.fetch(TRACK_CHANNEL_ID);
   } catch (err) {
@@ -245,7 +335,7 @@ Twitch.on('message', async (channel, userstate, message, self) => {
     },
 
     '!wickd': () =>
-      `Check out our range of Wick'd Geek gear at https://wickdgeek.com. Use coupon: Twitch for 5% off`,
+      `Check out our range of Wick'd Geek gear at https://wickdgeek.com.`,
 
     '!dead': async () => {
       if (!isPrivileged) return;
