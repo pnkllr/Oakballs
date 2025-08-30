@@ -117,10 +117,7 @@ function buildActivities(viewers) {
   const v = (typeof viewers === 'number' && viewers >= 0) ? viewers : null;
 
   const base = [
-    { name: 'with the chat', type: 'PLAYING' },
-    { name: 'coding Oakballs', type: 'WATCHING' },
-    { name: 'lofi beats', type: 'LISTENING' },
-    { name: 'FPS mayhem', type: 'COMPETING' }
+    { name: 'with the chat', type: 'PLAYING' }
   ];
 
   const streamName = v === null
@@ -304,7 +301,7 @@ Twitch.on('message', async (channel, userstate, message, self) => {
 
   const commands = {
     '!commands': () =>
-      `[ !discord | !website | !socials | !gt | !cc | !lurk | !clip | !wickd | !dead | !fall | !countreset ]`,
+      `[ !discord | !website | !socials | !gt  | !tools | !lurk | !clipit | !wickd | !dead | !fall | !countreset ]`,
 
     '!discord': () =>
       `@${userstate['display-name']}, This is the server you're looking for ${process.env.DISCORD_INVITE}`,
@@ -316,16 +313,16 @@ Twitch.on('message', async (channel, userstate, message, self) => {
 
     '!gt': () => `PnKllr || PnKllrTV`,
 
-    '!cc': () => `Use my Epic Creator Code when you make purchases in the Epic store and Fortnite: PnKllr`,
+    '!tools': () => `Need some tools for your stream? Clip command, chat overlay? Check out https://tools.pnkllr.net`,
 
     '!lurk': () =>
       `@${userstate['display-name']}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`,
 
-    '!clip': async () => {
+    '!clipit': async () => {
       try {
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), 10_000);
-        const res = await fetch(`https://pnkllr.net/clipit.php?username=${encodeURIComponent(userstate['display-name'])}`, { signal: controller.signal });
+        const res = await fetch(`https://tools.pnkllr.net/tools/clipit.php?channel=pnkllr&format=text`, { signal: controller.signal });
         clearTimeout(t);
         const text = await res.text();
         return `Heres the Plunkup @${userstate['display-name']} ${text}`;
@@ -387,7 +384,7 @@ const timers = [
   "Enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media.",
   "Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT",
   "Check out our Wick'd Geek Collection! https://wickdgeek.com",
-  "See something dumb on stream? Use !clip to capture it!",
+  "See something dumb on stream? Use !clipit to capture it!",
   "To view a list of commands, use !commands"
 ];
 
