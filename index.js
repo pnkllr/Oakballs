@@ -205,7 +205,7 @@ function isModOrBroadcaster(userstate) {
 }
 
 Twitch.on('connected', () => {
-  try { Twitch.raw('CAP REQ :twitch.tv/tags twitch.tv/commands'); } catch {/* noop */}
+  try { Twitch.raw('CAP REQ :twitch.tv/tags twitch.tv/commands'); } catch {/* noop */ }
   console.log('Connected to Twitch.');
 });
 
@@ -222,7 +222,7 @@ Twitch.on('raided', (channel, username, viewers) => {
 // Sub
 Twitch.on('subscription', async (channel, username) => {
   try {
-      await streamChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
+    await streamChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
   } catch (e) { console.error(e); }
   safeSay(channel, `Oh no! @${username} is wasting money =O`);
 });
@@ -231,12 +231,12 @@ Twitch.on('subscription', async (channel, username) => {
 Twitch.on('resub', async (channel, username, months, message, tags) => {
   const m = Number(tags?.['msg-param-cumulative-months']) || Number(months) || 0;
   try {
-      await streamChannel.send(
-        '```asciidoc\n' +
-        `= x${m} Month Subscriber =\n` +
-        `[${username}] :: ${message || ''}\n` +
-        '```'
-      );
+    await streamChannel.send(
+      '```asciidoc\n' +
+      `= x${m} Month Subscriber =\n` +
+      `[${username}] :: ${message || ''}\n` +
+      '```'
+    );
   } catch (e) { console.error(e); }
   safeSay(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
@@ -245,12 +245,12 @@ Twitch.on('resub', async (channel, username, months, message, tags) => {
 Twitch.on('subgift', async (channel, username, _streakMonths, recipient, _methods, tags) => {
   const totalGiftMonths = Number(tags?.['msg-param-gift-months']) || 1; // FIX: no bitwise ~
   try {
-      await streamChannel.send(
-        '```asciidoc\n' +
-        `= ${username} Gifted a Sub =\n` +
-        `[${recipient}] :: ${totalGiftMonths} Months Total\n` +
-        '```'
-      );
+    await streamChannel.send(
+      '```asciidoc\n' +
+      `= ${username} Gifted a Sub =\n` +
+      `[${recipient}] :: ${totalGiftMonths} Months Total\n` +
+      '```'
+    );
   } catch (e) { console.error(e); }
   safeSay(channel, `I'm sure they have their own money @${username}`);
 });
@@ -277,8 +277,8 @@ Twitch.on('message', async (channel, userstate, message, self) => {
 
   // greetings
   if (lower === 'hello') return safeSay(channel, `@${userstate['display-name']}, hey there!`);
-  if (lower === 'back')  return safeSay(channel, `@${userstate['display-name']}, welcome back`);
-  if (lower === '^')     return safeSay(channel, '^');
+  if (lower === 'back') return safeSay(channel, `@${userstate['display-name']}, welcome back`);
+  if (lower === '^') return safeSay(channel, '^');
 
   // blocked words
   if (BLOCKED_WORDS.some(w => lower.includes(w))) {
@@ -356,8 +356,16 @@ Twitch.on('message', async (channel, userstate, message, self) => {
 
     '!Test': async () => {
       if (!isPrivileged) return;
-      await streamChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
-      await generalChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
+      try {
+        await streamChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
+      } catch (err) {
+        console.error('Error sending join message:', err);
+      }
+      try {
+        await generalChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
+      } catch (err) {
+        console.error('Error sending join message:', err);
+      }
     }
   };
 
@@ -410,7 +418,7 @@ setInterval(discTimer, 1_800_000); // 30 min
 
   process.on('SIGINT', async () => {
     console.log('Shutting down...');
-    try { await saveData(); } catch {}
+    try { await saveData(); } catch { }
     process.exit(0);
   });
 })();
