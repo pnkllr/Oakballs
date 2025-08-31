@@ -354,7 +354,7 @@ Twitch.on('message', async (channel, userstate, message, self) => {
       return `Counters reset to 0!`;
     },
 
-    '!Test': async () => {
+    '!test': async () => {
       if (!isPrivileged) return;
       try {
         await streamChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
@@ -388,7 +388,6 @@ function colorChange() {
   const color = colors[(Math.random() * colors.length) | 0];
   // send to joined channel
   safeSay(TWITCH_CHANNEL, `/color ${color}`);
-  console.log(`Changed color to ${color}`);
 }
 setInterval(colorChange, 300_000); // 5 min
 
