@@ -11,7 +11,8 @@ const fetch = require('node-fetch');
 // --------------------------
 // Config
 // --------------------------
-const TRACK_CHANNEL_ID = process.env.TRACK_CHANNEL_ID || '1403975109735350395';
+const GENERAL_CHANNEL_ID = process.env.GENERAL_CHANNEL_ID || '1403975109735350395';
+const STREAM_CHANNEL_ID = process.env.STREAM_CHANNEL_ID || '1406543359647940700';
 
 // Make CHANNEL_NAME robust (strip leading '#', allow fallback)
 const TWITCH_CHANNEL_NAME = ((process.env.CHANNEL_NAME || '').replace(/^#/, '').trim()) || 'pnkllr';
@@ -149,16 +150,20 @@ Discord.once('ready', async () => {
   setInterval(setRandomDiscordActivity, 300_000);
 
   try {
-    trackedChannel = await Discord.channels.fetch(TRACK_CHANNEL_ID);
+    generalChannel = await client.channels.fetch(GENERAL_CHANNEL_ID);
   } catch (err) {
-    console.error('Failed to fetch track channel:', err);
+    console.error('Failed to fetch track generral channel:', err);
+  }
+  try {
+    streamChannel = await client.channels.fetch(STREAM_CHANNEL_ID);
+  } catch (err) {
+    console.error('Failed to fetch track stream channel:', err);
   }
 });
 
 Discord.on('guildMemberAdd', async (member) => {
   try {
-    const ch = trackedChannel || await member.guild.channels.fetch(TRACK_CHANNEL_ID);
-    await ch.send('```diff\n+ ' + member.displayName + '```');
+    await generalChannel.send('```diff\n+ ' + member.displayName + '```');
   } catch (err) {
     console.error('Error sending join message:', err);
   }
@@ -166,8 +171,7 @@ Discord.on('guildMemberAdd', async (member) => {
 
 Discord.on('guildMemberRemove', async (member) => {
   try {
-    const ch = trackedChannel || await member.guild.channels.fetch(TRACK_CHANNEL_ID);
-    await ch.send('```diff\n- ' + member.displayName + '```');
+    await generalChannel.send('```diff\n- ' + member.displayName + '```');
   } catch (err) {
     console.error('Error sending leave message:', err);
   }
@@ -218,9 +222,7 @@ Twitch.on('raided', (channel, username, viewers) => {
 // Sub
 Twitch.on('subscription', async (channel, username) => {
   try {
-    if (trackedChannel) {
-      await trackedChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
-    }
+      await streamChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
   } catch (e) { console.error(e); }
   safeSay(channel, `Oh no! @${username} is wasting money =O`);
 });
@@ -229,14 +231,12 @@ Twitch.on('subscription', async (channel, username) => {
 Twitch.on('resub', async (channel, username, months, message, tags) => {
   const m = Number(tags?.['msg-param-cumulative-months']) || Number(months) || 0;
   try {
-    if (trackedChannel) {
-      await trackedChannel.send(
+      await streamChannel.send(
         '```asciidoc\n' +
         `= x${m} Month Subscriber =\n` +
         `[${username}] :: ${message || ''}\n` +
         '```'
       );
-    }
   } catch (e) { console.error(e); }
   safeSay(channel, `I guess you didn't learn the first time hey @${username}?`);
 });
@@ -245,14 +245,12 @@ Twitch.on('resub', async (channel, username, months, message, tags) => {
 Twitch.on('subgift', async (channel, username, _streakMonths, recipient, _methods, tags) => {
   const totalGiftMonths = Number(tags?.['msg-param-gift-months']) || 1; // FIX: no bitwise ~
   try {
-    if (trackedChannel) {
-      await trackedChannel.send(
+      await streamChannel.send(
         '```asciidoc\n' +
         `= ${username} Gifted a Sub =\n` +
         `[${recipient}] :: ${totalGiftMonths} Months Total\n` +
         '```'
       );
-    }
   } catch (e) { console.error(e); }
   safeSay(channel, `I'm sure they have their own money @${username}`);
 });
@@ -354,6 +352,12 @@ Twitch.on('message', async (channel, userstate, message, self) => {
       data.fall = 0;
       await saveData();
       return `Counters reset to 0!`;
+    },
+
+    '!Test': async () => {
+      if (!isPrivileged) return;
+      await streamChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
+      await generalChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
     }
   };
 
