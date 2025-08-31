@@ -150,12 +150,12 @@ Discord.once('ready', async () => {
   setInterval(setRandomDiscordActivity, 300_000);
 
   try {
-    generalChannel = await member.guild.channels.fetch(GENERAL_CHANNEL_ID);
+    generalChannel = await Discord.channels.fetch(GENERAL_CHANNEL_ID);
   } catch (err) {
     console.error('Failed to fetch track generral channel:', err);
   }
   try {
-    streamChannel = await member.guild.channels.fetch(STREAM_CHANNEL_ID);
+    streamChannel = await Discord.channels.fetch(STREAM_CHANNEL_ID);
   } catch (err) {
     console.error('Failed to fetch track stream channel:', err);
   }
