@@ -354,19 +354,13 @@ Twitch.on('message', async (channel, userstate, message, self) => {
       return `Counters reset to 0!`;
     },
 
-    '!test': async () => {
+    '!shoutout': (args) => {
       if (!isPrivileged) return;
-      try {
-        await streamChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
-      } catch (err) {
-        console.error('Error sending join message:', err);
-      }
-      try {
-        await generalChannel.send('```asciidoc\n= Testing =\nTest Complete\n```');
-      } catch (err) {
-        console.error('Error sending join message:', err);
-      }
-    }
+      if (!args.length) return 'Who do you want to shout out?';
+      const target = args[0].replace('@', ''); // strip @ if they type it
+      return `Go check out @${target} over at https://twitch.tv/${target}`;
+    },
+    '!so': (args) => commands['!shoutout'](args)
   };
 
   const fn = commands[cmd.toLowerCase()];
@@ -396,7 +390,8 @@ const timers = [
   "Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT",
   "Check out our Wick'd Geek Collection! https://wickdgeek.com",
   "See something dumb on stream? Use !clipit to capture it!",
-  "To view a list of commands, use !commands"
+  "To view a list of commands, use !commands",
+  "Need tools for your stream? Head on over to https://tools.pnkllr.net"
 ];
 
 function discTimer() {
