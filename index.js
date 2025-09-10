@@ -114,27 +114,35 @@ const Discord = new Client({
 let trackedChannel = null;
 
 // ---------- Activity Rotation ----------
-function buildActivities(viewers) {
-  const v = (typeof viewers === 'number' && viewers >= 0) ? viewers : null;
-
-  const base = [
-    { name: 'with the chat', type: 'PLAYING' }
-  ];
-
-  const streamName = v === null
-    ? 'TTV: PnKllr'
-    : `TTV: PnKllr | ${v} viewer${v === 1 ? '' : 's'}`;
-
-  base.push({ name: streamName, type: 'STREAMING', url: 'https://twitch.tv/pnkllr' });
-  return base;
-}
-
-async function setRandomDiscordActivity() {
+async function setDiscordActivity() {
   const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
-  const activities = buildActivities(viewers);
-  const pick = activities[(Math.random() * activities.length) | 0];
+
+  let activity;
+
+  if (viewers === null) {
+    // fallback when API fails
+    activity = { 
+      name: 'TTV: PnKllr', 
+      type: 'STREAMING', 
+      url: 'https://twitch.tv/pnkllr' 
+    };
+  } else if (viewers < 1) {
+    // case: nobody watching
+    activity = { 
+      name: 'waiting for viewers…', 
+      type: 'WATCHING' 
+    };
+  } else {
+    // case: 1+ viewers
+    activity = { 
+      name: `TTV: PnKllr | ${viewers} viewer${viewers === 1 ? '' : 's'}`, 
+      type: 'STREAMING', 
+      url: 'https://twitch.tv/pnkllr' 
+    };
+  }
+
   try {
-    Discord.user.setActivity(pick);
+    Discord.user.setActivity(activity);
   } catch (e) {
     console.warn('setActivity error:', e?.message || e);
   }
@@ -144,10 +152,10 @@ Discord.once('ready', async () => {
   console.log(`Discord logged in as ${Discord.user.tag}`);
 
   // Initial status right away
-  await setRandomDiscordActivity();
+  await setDiscordActivity();
 
   // Rotate every 5 minutes
-  setInterval(setRandomDiscordActivity, 300_000);
+  setInterval(setDiscordActivity, 300_000);
 
   try {
     generalChannel = await Discord.channels.fetch(GENERAL_CHANNEL_ID);
