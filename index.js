@@ -323,6 +323,7 @@ Twitch.on('message', async (channel, userstate, message, self) => {
         const res = await fetch(`https://tools.pnkllr.net/tools/clipit.php?channel=pnkllr&format=text`, { signal: controller.signal });
         clearTimeout(t);
         const text = await res.text();
+        await new Promise(resolve => setTimeout(resolve, 3000));
         return `Heres the Plunkup @${userstate['display-name']} ${text}`;
       } catch (e) {
         return `@${userstate['display-name']} failed to clip right now. Try again in a moment.`;
@@ -372,6 +373,71 @@ Twitch.on('message', async (channel, userstate, message, self) => {
   const out = await fn(args);
   if (out) safeSay(channel, out);
 });
+
+// --------------------------
+// Personalized Greetings
+// --------------------------
+// Lowercase the keys
+const SPECIAL_USERS = new Map(Object.entries({
+  therottenpeach: [
+    "Alright everyone, behave… mum’s here. @therottenpeach",
+    "Keeping us in line like always - good to have you back @therottenpeach.",
+    "The group feels calmer when you walk in @therottenpeach"
+  ],
+  bigstona: [
+    "Brad's here - controller locked and loaded. @bigstona",
+    "Wouldn't be a proper stream without the gaming crew checking in. @bigstona",
+    "Alright, who gave Brad another energy drink? @bigstona"
+  ],
+  andeey: [
+    "Warning: sugar spike incoming. It's another stream with @Andeey!",
+    "Thanks for rolling in, you always bring that extra bit of energy @Andeey.",
+    "Another dose of chaos, courtesy of @Andeey."
+  ],
+  depemy: [
+    "The veteran just clocked in - everyone else take notes. @depemy",
+    "Day-ones like you keep this whole thing real. Welcome back, mate. @depemy",
+    "One of the OGs has arrived - respect @depemy!"
+  ],
+  yummynoodle: [
+    "Hide your pets, @yummynoodle is here again.",
+    "Good to see you, always bringing the laughs we need @yummynoodle.",
+    "Uh oh, who let @yummynoodle back in the kitchen?"
+  ],
+  emzient: [
+    "STALKER ALERT XD"
+  ]
+}));
+
+// Avoid spamming repeated greets
+const GREET_COOLDOWN_MS = 30 * 60_000; // 15 min
+const lastGreetAt = new Map();         // username -> timestamp (ms)
+const greetedThisSession = new Set();  // usernames greeted since boot
+
+function maybePersonalGreet(channel, username, reason = 'join') {
+  const u = String(username || '').toLowerCase();
+  const options = SPECIAL_USERS.get(u);
+  if (!options) return;
+
+  const now = Date.now();
+  const last = lastGreetAt.get(u) || 0;
+
+  if (now - last < GREET_COOLDOWN_MS) return;
+  if (reason === 'message' && greetedThisSession.has(u)) return;
+
+  lastGreetAt.set(u, now);
+  greetedThisSession.add(u);
+
+  // Pick a random greeting
+  const baseMsg = Array.isArray(options)
+    ? options[Math.floor(Math.random() * options.length)]
+    : options;
+
+  // Prefix with @username
+  const msg = `${baseMsg}`;
+
+  return safeSay(channel, msg);
+}
 
 // --------------------------
 // Timers
