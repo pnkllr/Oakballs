@@ -512,20 +512,56 @@ function colorChange() {
 }
 setInterval(colorChange, 300_000); // 5 min
 
-const timers = [
-  "Enjoying stream? Then why dont you leave a follow, say something in chat or even go follow PnKllr on social media.",
-  "Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT",
-  "Check out our Wick'd Geek Collection! https://wickdgeek.com",
-  "See something dumb on stream? Use !clipit to capture it!",
-  "To view a list of commands, use !commands",
-  "Need tools for your stream? Head on over to https://tools.pnkllr.net"
-];
+const timerPools = {
+  engagement: [
+    "Enjoying stream? Why not leave a follow or say something in chat 💬",
+    "Your support keeps the stream alive 💜 Even just hanging out means a lot!",
+    "If you’re enjoying the vibes, consider sharing the stream with a friend.",
+    "Lurkers welcome! Don’t be shy, drop a hello 👋",
+    "Got questions? Ask away — we love chatting with the community."
+  ],
+  commands: [
+    "See something dumb on stream? Use !clipit to capture it!",
+    "To view a list of commands, use !commands",
+    "Curious about stats? Try !deaths or !falls 😅",
+    "Want a shoutout for your channel? Mods can use !so <name>"
+  ],
+  socials: [
+    "Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT",
+    "Follow me on Twitter/X for updates: https://x.com/pnkllr",
+  ],
+  promo: [
+    "Check out our Wick'd Geek Collection! https://wickdgeek.com",
+    "Need tools for your stream? Head on over to https://tools.pnkllr.net",
+    "Grab some merch 👉 https://weartrulight.com"
+  ],
+  fun: [
+    "Hydrate check! 💧 Drink some water while you’re watching.",
+    "Stretch break! 🧘‍♂️ We’ve been sitting too long.",
+    "Pro tip: clips are forever… embarrass me responsibly 😎",
+    "Chat messages power the stream — silence drains my energy bar ⚡"
+  ]
+};
+
+// Flatten into one pool each time
+function getRandomTimer() {
+  const categories = Object.keys(timerPools);
+  const cat = categories[(Math.random() * categories.length) | 0]; // pick random category
+  const messages = timerPools[cat];
+  return messages[(Math.random() * messages.length) | 0]; // pick random message
+}
 
 function discTimer() {
-  safeSay(TWITCH_CHANNEL, timers[(Math.random() * timers.length) | 0]);
+  const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
+  if (typeof viewers === "number" && viewers > 0) {
+    const msg = getRandomTimer();
+    safeSay(TWITCH_CHANNEL, msg);
+  } else {
+    console.log("Timer skipped — no viewers.");
+  }
 }
-setInterval(discTimer, 1_800_000); // 30 min
 
+setInterval(discTimer, 900_000); // every 15 min
 // --------------------------
 // Boot & Shutdown
 // --------------------------
