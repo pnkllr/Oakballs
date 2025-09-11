@@ -552,7 +552,7 @@ function getRandomTimer() {
 }
 
 function discTimer() {
-  const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
+  const viewers = getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
   if (typeof viewers === "number" && viewers > 0) {
     const msg = getRandomTimer();
     safeSay(TWITCH_CHANNEL, msg);
