@@ -411,29 +411,29 @@ function normUser(u) {
 
 const RAW_SPECIAL_USERS = {
   therottenpeach: [
-    "Alright everyone, behave… mum’s here. @{user}",
-    "Keeping us in line like always - good to have you back @{user}.",
-    "The group feels calmer when you walk in @{user}"
+    "Alright everyone, behave… mum’s here. {user}",
+    "Keeping us in line like always - good to have you back {user}.",
+    "The group feels calmer when you walk in {user}"
   ],
   bigstona: [
-    "Brad's here - controller locked and loaded. @{user}",
-    "Wouldn't be a proper stream without the gaming crew checking in. @{user}",
-    "Alright, who gave Brad another energy drink? @{user}"
+    "Brad's here - controller locked and loaded. {user}",
+    "Wouldn't be a proper stream without the gaming crew checking in. {user}",
+    "Alright, who gave Brad another energy drink? {user}"
   ],
   andeey: [
-    "Warning: sugar spike incoming. It's another stream with @{user}!",
-    "Thanks for rolling in, you always bring that extra bit of energy @{user}.",
-    "Another dose of chaos, courtesy of @{user}."
+    "Warning: sugar spike incoming. It's another stream with {user}!",
+    "Thanks for rolling in, you always bring that extra bit of energy {user}.",
+    "Another dose of chaos, courtesy of {user}."
   ],
   depemy: [
-    "The veteran just clocked in - everyone else take notes. @{user}",
-    "Day-ones like you keep this whole thing real. Welcome back, mate. @{user}",
-    "One of the OGs has arrived - respect @{user}!"
+    "The veteran just clocked in - everyone else take notes. {user}",
+    "Day-ones like you keep this whole thing real. Welcome back, mate. {user}",
+    "One of the OGs has arrived - respect {user}!"
   ],
   yummynoodle: [
-    "Hide your pets, @{user} is here again.",
-    "Good to see you, always bringing the laughs we need @{user}.",
-    "Uh oh, who let @{user} back in the kitchen?"
+    "Hide your pets, {user} is here again.",
+    "Good to see you, always bringing the laughs we need {user}.",
+    "Uh oh, who let {user} back in the kitchen?"
   ],
   emzient: [
     "STALKER ALERT XD"
