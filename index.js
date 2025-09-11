@@ -13,6 +13,7 @@ const fetch = require('node-fetch');
 // --------------------------
 const GENERAL_CHANNEL_ID = process.env.GENERAL_CHANNEL_ID || '1403975109735350395';
 const STREAM_CHANNEL_ID = process.env.STREAM_CHANNEL_ID || '1406543359647940700';
+const TWITCH_CHANNEL_ID = process.env.TWITCH_CHANNEL_ID || '1415620399151976448';
 
 // Make CHANNEL_NAME robust (strip leading '#', allow fallback)
 const TWITCH_CHANNEL_NAME = ((process.env.CHANNEL_NAME || '').replace(/^#/, '').trim()) || 'pnkllr';
@@ -111,8 +112,6 @@ const Discord = new Client({
   partials: ['CHANNEL'] // for DMs if ever needed
 });
 
-let trackedChannel = null;
-
 // ---------- Activity Rotation ----------
 async function setDiscordActivity() {
   const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
@@ -121,23 +120,23 @@ async function setDiscordActivity() {
 
   if (viewers === null) {
     // fallback when API fails
-    activity = { 
-      name: 'TTV: PnKllr', 
-      type: 'STREAMING', 
-      url: 'https://twitch.tv/pnkllr' 
+    activity = {
+      name: 'TTV: PnKllr',
+      type: 'STREAMING',
+      url: 'https://twitch.tv/pnkllr'
     };
   } else if (viewers < 1) {
     // case: nobody watching
-    activity = { 
-      name: 'waiting for viewers…', 
-      type: 'WATCHING' 
+    activity = {
+      name: 'waiting for viewers…',
+      type: 'WATCHING'
     };
   } else {
     // case: 1+ viewers
-    activity = { 
-      name: `TTV: PnKllr | ${viewers} viewer${viewers === 1 ? '' : 's'}`, 
-      type: 'STREAMING', 
-      url: 'https://twitch.tv/pnkllr' 
+    activity = {
+      name: `TTV: PnKllr | ${viewers} viewer${viewers === 1 ? '' : 's'}`,
+      type: 'STREAMING',
+      url: 'https://twitch.tv/pnkllr'
     };
   }
 
@@ -166,6 +165,11 @@ Discord.once('ready', async () => {
     streamChannel = await Discord.channels.fetch(STREAM_CHANNEL_ID);
   } catch (err) {
     console.error('Failed to fetch track stream channel:', err);
+  }
+  try {
+    chatChannel = await Discord.channels.fetch(TWITCH_CHANNEL_ID);
+  } catch (err) {
+    console.error('Failed to fetch track chat channel:', err);
   }
 });
 
@@ -279,7 +283,17 @@ function onCooldown(key) {
 }
 
 Twitch.on('message', async (channel, userstate, message, self) => {
+
+  try {
+    await chatChannel.send(
+      '```asciidoc\n' +
+      `[${userstate['display-name']}] :: ${message}\n` +
+      '```'
+    );
+  } catch (e) { console.error(e); }
   if (self) return;
+
+  PersonalGreet(Twitch, channel, userstate?.username, 'message');
 
   const lower = (message || '').trim().toLowerCase();
 
@@ -382,69 +396,108 @@ Twitch.on('message', async (channel, userstate, message, self) => {
   if (out) safeSay(channel, out);
 });
 
+Twitch.on('join', (channel, username, self) => {
+  if (self) return;
+  PersonalGreet(Twitch, channel, username, 'join');
+});
+
 // --------------------------
-// Personalized Greetings
+// Personalized Greetings (robust)
 // --------------------------
-// Lowercase the keys
-const SPECIAL_USERS = new Map(Object.entries({
+
+function normUser(u) {
+  return String(u || '').trim().replace(/^@/, '').toLowerCase();
+}
+
+const RAW_SPECIAL_USERS = {
   therottenpeach: [
-    "Alright everyone, behave… mum’s here. @therottenpeach",
-    "Keeping us in line like always - good to have you back @therottenpeach.",
-    "The group feels calmer when you walk in @therottenpeach"
+    "Alright everyone, behave… mum’s here. @{user}",
+    "Keeping us in line like always - good to have you back @{user}.",
+    "The group feels calmer when you walk in @{user}"
   ],
   bigstona: [
-    "Brad's here - controller locked and loaded. @bigstona",
-    "Wouldn't be a proper stream without the gaming crew checking in. @bigstona",
-    "Alright, who gave Brad another energy drink? @bigstona"
+    "Brad's here - controller locked and loaded. @{user}",
+    "Wouldn't be a proper stream without the gaming crew checking in. @{user}",
+    "Alright, who gave Brad another energy drink? @{user}"
   ],
   andeey: [
-    "Warning: sugar spike incoming. It's another stream with @Andeey!",
-    "Thanks for rolling in, you always bring that extra bit of energy @Andeey.",
-    "Another dose of chaos, courtesy of @Andeey."
+    "Warning: sugar spike incoming. It's another stream with @{user}!",
+    "Thanks for rolling in, you always bring that extra bit of energy @{user}.",
+    "Another dose of chaos, courtesy of @{user}."
   ],
   depemy: [
-    "The veteran just clocked in - everyone else take notes. @depemy",
-    "Day-ones like you keep this whole thing real. Welcome back, mate. @depemy",
-    "One of the OGs has arrived - respect @depemy!"
+    "The veteran just clocked in - everyone else take notes. @{user}",
+    "Day-ones like you keep this whole thing real. Welcome back, mate. @{user}",
+    "One of the OGs has arrived - respect @{user}!"
   ],
   yummynoodle: [
-    "Hide your pets, @yummynoodle is here again.",
-    "Good to see you, always bringing the laughs we need @yummynoodle.",
-    "Uh oh, who let @yummynoodle back in the kitchen?"
+    "Hide your pets, @{user} is here again.",
+    "Good to see you, always bringing the laughs we need @{user}.",
+    "Uh oh, who let @{user} back in the kitchen?"
   ],
   emzient: [
     "STALKER ALERT XD"
   ]
-}));
+};
 
-// Avoid spamming repeated greets
-const GREET_COOLDOWN_MS = 30 * 60_000; // 15 min
-const lastGreetAt = new Map();         // username -> timestamp (ms)
-const greetedThisSession = new Set();  // usernames greeted since boot
+// Lowercase keys for safety
+const SPECIAL_USERS = new Map(
+  Object.entries(RAW_SPECIAL_USERS).map(([k, v]) => [normUser(k), v])
+);
 
-function maybePersonalGreet(channel, username, reason = 'join') {
-  const u = String(username || '').toLowerCase();
-  const options = SPECIAL_USERS.get(u);
-  if (!options) return;
+const GREET_COOLDOWN_MS = 30 * 60_000; // 30 minutes
+const JOIN_DELAY_MS = 4000;            // tiny delay to smooth join spam
+const lastGreetAt = new Map();         // username -> timestamp
+const greetedThisSession = new Set();  // greeted since boot
 
+function pickRandom(arr) {
+  return arr[(Math.random() * arr.length) | 0];
+}
+function canGreet(u) {
   const now = Date.now();
   const last = lastGreetAt.get(u) || 0;
-
-  if (now - last < GREET_COOLDOWN_MS) return;
-  if (reason === 'message' && greetedThisSession.has(u)) return;
-
-  lastGreetAt.set(u, now);
+  return (now - last) >= GREET_COOLDOWN_MS;
+}
+function markGreeted(u) {
+  lastGreetAt.set(u, Date.now());
   greetedThisSession.add(u);
+}
+function formatLine(line, usernameAt) {
+  return String(line).replaceAll('{user}', usernameAt);
+}
 
-  // Pick a random greeting
-  const baseMsg = Array.isArray(options)
-    ? options[Math.floor(Math.random() * options.length)]
-    : options;
 
-  // Prefix with @username
-  const msg = `${baseMsg}`;
+function PersonalGreet(client, channel, username, reason = 'join') {
+  const u = normUser(username);
+  if (!u) return;
 
-  return safeSay(channel, msg);
+  // ignore the bot itself
+  if (client?.getUsername && normUser(client.getUsername()) === u) return;
+
+  const lines = SPECIAL_USERS.get(u);
+  if (!lines || lines.length === 0) return;
+
+  if (reason === 'message') {
+    // greet on first message only, respect cooldown
+    if (greetedThisSession.has(u)) return;
+    if (!canGreet(u)) return;
+    const line = pickRandom(lines);
+    markGreeted(u);
+    return safeSay(channel, formatLine(line, `@${u}`));
+  }
+
+  if (reason === 'join') {
+    if (greetedThisSession.has(u)) return;
+    if (!canGreet(u)) return;
+
+    setTimeout(() => {
+      if (greetedThisSession.has(u)) return;
+      if (!canGreet(u)) return;
+      const line = pickRandom(lines);
+      markGreeted(u);
+      safeSay(channel, formatLine(line, `@${u}`));
+    }, JOIN_DELAY_MS);
+  }
 }
 
 // --------------------------
