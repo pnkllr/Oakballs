@@ -398,7 +398,7 @@ Twitch.on('message', async (channel, userstate, message, self) => {
 
 Twitch.on('join', (channel, username, self) => {
   if (self) return;
-  PersonalGreet(Twitch, channel, username, 'join');
+  // PersonalGreet(Twitch, channel, username, 'join');
 });
 
 // --------------------------
