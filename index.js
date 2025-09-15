@@ -595,7 +595,7 @@ function getRandomTimer() {
 
 function discTimer() {
   const viewers = getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
-  if (typeof viewers === "number" && viewers > 0) {
+  if (viewers > 0) {
     const msg = getRandomTimer();
     safeSay(process.env.CHANNEL_NAME, msg);
   } else {
