@@ -222,40 +222,64 @@ Twitch.on('connected', () => {
 });
 
 // Hosted
-Twitch.on('hosted', (channel, username) => {
-  safeSay(channel, `Really @${username}? You want to share this with other people? Really?`);
+Twitch.on('hosted', (channel, username, viewers, autohost) => {
+  if (viewers) {
+    safeSay(channel, `📺 ${username} is hosting with ${viewers} viewers — thanks for the boost! 🙏`);
+  } else {
+    safeSay(channel, `📺 ${username} is hosting the stream — appreciate the love! 💜`);
+  }
 });
 
 // Raided
 Twitch.on('raided', (channel, username, viewers) => {
-  safeSay(channel, `Oh hey @${username} and their ${viewers} minions o/`);
+  safeSay(channel, `⚡ RAID ALERT! ${username} and ${viewers} raiders are storming in! Welcome! 🚀`);
 });
 
 // Sub
-Twitch.on('subscription', async (channel, username) => {
-  try {
-    await streamChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
-  } catch (e) { console.error(e); }
-  safeSay(channel, `Oh no! @${username} is wasting money =O`);
+Twitch.on('subscription', async (channel, username, methods) => {
+  if (methods.prime) {
+    try {
+      await streamChannel.send('```asciidoc\n= New Prime Subscriber =\n[' + username + ']\n```');
+    } catch (e) { console.error(e); }
+    safeSay(channel, `🎉 Thank you ${username} for subscribing with Prime! Enjoy the perks 🙌`);
+  } else {
+    try {
+      await streamChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
+    } catch (e) { console.error(e); }
+    safeSay(channel, `💜 Thank you ${username} for subscribing! Welcome aboard 🚀`);
+  }
 });
 
 // Resub
-Twitch.on('resub', async (channel, username, months, message, tags) => {
+Twitch.on('resub', async (channel, username, months, methods, message, tags) => {
   const m = Number(tags?.['msg-param-cumulative-months']) || Number(months) || 0;
-  try {
-    await streamChannel.send(
-      '```asciidoc\n' +
-      `= x${m} Month Subscriber =\n` +
-      `[${username}] :: ${message || ''}\n` +
-      '```'
-    );
-  } catch (e) { console.error(e); }
-  safeSay(channel, `I guess you didn't learn the first time hey @${username}?`);
+
+  if (methods.prime) {
+    try {
+      await streamChannel.send(
+        '```asciidoc\n' +
+        `= x${m} Month Prime Subscriber =\n` +
+        `[${username}] :: ${message || ''}\n` +
+        '```'
+      );
+    } catch (e) { console.error(e); }
+    client.say(channel, `🔥 ${username} has resubscribed with Prime for ${m} months! Thank you 🙏`);
+  } else {
+    try {
+      await streamChannel.send(
+        '```asciidoc\n' +
+        `= x${m} Month Subscriber =\n` +
+        `[${username}] :: ${message || ''}\n` +
+        '```'
+      );
+    } catch (e) { console.error(e); }
+    client.say(channel, `💎 ${username} resubbed for ${m} months! Absolute legend 💜`);
+  }
 });
 
-// Gift Sub
+// Single Gift Sub
 Twitch.on('subgift', async (channel, username, _streakMonths, recipient, _methods, tags) => {
-  const totalGiftMonths = Number(tags?.['msg-param-gift-months']) || 1; // FIX: no bitwise ~
+  const totalGiftMonths = Number(tags?.['msg-param-gift-months']) || 1;
   try {
     await streamChannel.send(
       '```asciidoc\n' +
@@ -263,8 +287,25 @@ Twitch.on('subgift', async (channel, username, _streakMonths, recipient, _method
       `[${recipient}] :: ${totalGiftMonths} Months Total\n` +
       '```'
     );
-  } catch (e) { console.error(e); }
-  safeSay(channel, `I'm sure they have their own money @${username}`);
+  } catch (e) {
+    console.error(e);
+  }
+  safeSay(channel, `🎁 ${username} just gifted a sub to ${recipient}! (${totalGiftMonths} months total) 💜`);
+});
+
+// Gift Bomb (multiple subs at once)
+Twitch.on('submysterygift', async (channel, username, giftSubCount, methods, tags) => {
+  try {
+    await streamChannel.send(
+      '```asciidoc\n' +
+      `= ${username} Dropped a Sub Bomb =\n` +
+      `Count :: ${giftSubCount} subs\n` +
+      '```'
+    );
+  } catch (e) {
+    console.error(e);
+  }
+  safeSay(channel, `💣 ${username} just gifted ${giftSubCount} subs! Absolute legend 🙌`);
 });
 
 // --------------------------
@@ -283,6 +324,10 @@ function onCooldown(key) {
 }
 
 Twitch.on('message', async (channel, userstate, message, self) => {
+   const bits = parseInt(userstate.bits || 0, 10);
+  if (bits > 0) {
+    safeSay(channel, `🎉 ${userstate['display-name']} just cheered with ${bits} bits! Thank you 💜`);
+  }
 
   try {
     await chatChannel.send(
@@ -434,9 +479,6 @@ const RAW_SPECIAL_USERS = {
     "Hide your pets, {user} is here again.",
     "Good to see you, always bringing the laughs we need {user}.",
     "Uh oh, who let {user} back in the kitchen?"
-  ],
-  emzient: [
-    "STALKER ALERT XD"
   ]
 };
 
@@ -508,7 +550,7 @@ const colors = ["SpringGreen", "Blue", "Chocolate", "Red", "Coral", "Firebrick",
 function colorChange() {
   const color = colors[(Math.random() * colors.length) | 0];
   // send to joined channel
-  safeSay(TWITCH_CHANNEL, `/color ${color}`);
+  safeSay(process.env.CHANNEL_NAME, `/color ${color}`);
 }
 setInterval(colorChange, 300_000); // 5 min
 
@@ -555,7 +597,7 @@ function discTimer() {
   const viewers = getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
   if (typeof viewers === "number" && viewers > 0) {
     const msg = getRandomTimer();
-    safeSay(TWITCH_CHANNEL, msg);
+    safeSay(process.env.CHANNEL_NAME, msg);
   } else {
     console.log("Timer skipped — no viewers.");
   }
