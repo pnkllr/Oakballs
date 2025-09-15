@@ -593,7 +593,7 @@ function getRandomTimer() {
   return messages[(Math.random() * messages.length) | 0]; // pick random message
 }
 
-function discTimer() {
+async function discTimer() {
   const viewers = getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
   if (viewers > 0) {
     const msg = getRandomTimer();
