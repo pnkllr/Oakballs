@@ -221,15 +221,6 @@ Twitch.on('connected', () => {
   console.log('Connected to Twitch.');
 });
 
-// Hosted
-Twitch.on('hosted', (channel, username, viewers, autohost) => {
-  if (viewers) {
-    safeSay(channel, `📺 ${username} is hosting with ${viewers} viewers — thanks for the boost! 🙏`);
-  } else {
-    safeSay(channel, `📺 ${username} is hosting the stream — appreciate the love! 💜`);
-  }
-});
-
 // Raided
 Twitch.on('raided', (channel, username, viewers) => {
   safeSay(channel, `⚡ RAID ALERT! ${username} and ${viewers} raiders are storming in! Welcome! 🚀`);
