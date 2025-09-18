@@ -594,12 +594,16 @@ function getRandomTimer() {
 }
 
 async function discTimer() {
-  const viewers = getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
-  if (viewers > 0) {
-    const msg = getRandomTimer();
-    safeSay(process.env.CHANNEL_NAME, msg);
-  } else {
-    console.log("Timer skipped — no viewers.");
+  try {
+    const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
+    if (viewers && viewers > 0) {
+      const msg = getRandomTimer();
+      safeSay(process.env.CHANNEL_NAME, msg);
+    } else {
+      console.log("Timer skipped — no viewers.");
+    }
+  } catch (err) {
+    console.error("Error running discTimer:", err);
   }
 }
 
