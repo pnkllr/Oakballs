@@ -236,76 +236,83 @@ Twitch.on('raided', (channel, username, viewers) => {
 });
 
 // Sub
-Twitch.on('subscription', async (channel, username, methods) => {
-  if (methods.prime) {
-    try {
-      await streamChannel.send('```asciidoc\n= New Prime Subscriber =\n[' + username + ']\n```');
-    } catch (e) { console.error(e); }
-    safeSay(channel, `🎉 Thank you ${username} for subscribing with Prime! Enjoy the perks 🙌`);
-  } else {
-    try {
-      await streamChannel.send('```asciidoc\n= New Subscriber =\n[' + username + ']\n```');
-    } catch (e) { console.error(e); }
-    safeSay(channel, `💜 Thank you ${username} for subscribing! Welcome aboard 🚀`);
+Twitch.on('subscription', async (channel, username, methods, message, userstate) => {
+  const isPrime = methods.prime || methods.plan === 'Prime';
+
+  const embedMsg = isPrime
+    ? `= New Prime Subscriber =\n[${username}]`
+    : `= New Subscriber =\n[${username}]`;
+
+  try {
+    await streamChannel.send('```asciidoc\n' + embedMsg + '\n```');
+  } catch (err) {
+    console.error(err);
   }
+
+  const chatMsg = isPrime
+    ? `🎉 Thank you ${username} for subscribing with Prime! Enjoy the perks 🙌`
+    : `💜 Thank you ${username} for subscribing! Welcome aboard 🚀`;
+
+  safeSay(channel, chatMsg);
 });
 
 // Resub
-Twitch.on('resub', async (channel, username, months, methods, message, tags) => {
+Twitch.on('resub', async (channel, username, months, message, tags, methods) => {
   const m = Number(tags?.['msg-param-cumulative-months']) || Number(months) || 0;
+  const isPrime = methods.prime || methods.plan === 'Prime';
 
-  if (methods.prime) {
-    try {
-      await streamChannel.send(
-        '```asciidoc\n' +
-        `= x${m} Month Prime Subscriber =\n` +
-        `[${username}] :: ${message || ''}\n` +
-        '```'
-      );
-    } catch (e) { console.error(e); }
-    client.say(channel, `🔥 ${username} has resubscribed with Prime for ${m} months! Thank you 🙏`);
-  } else {
-    try {
-      await streamChannel.send(
-        '```asciidoc\n' +
-        `= x${m} Month Subscriber =\n` +
-        `[${username}] :: ${message || ''}\n` +
-        '```'
-      );
-    } catch (e) { console.error(e); }
-    client.say(channel, `💎 ${username} resubbed for ${m} months! Absolute legend 💜`);
-  }
+  const body = `= x${m} Month ${isPrime ? 'Prime ' : ''}Subscriber =\n` +
+    `[${username}] :: ${message || ''}`;
+
+  try {
+    await streamChannel.send('```asciidoc\n' + body + '\n```');
+  } catch (err) { console.error(err); }
+
+  const chatMsg = isPrime
+    ? `🔥 ${username} has resubscribed with Prime for ${m} months! Thank you 🙏`
+    : `💎 ${username} resubbed for ${m} months! Absolute legend 💜`;
+
+  safeSay(channel, chatMsg);
 });
 
+
 // Single Gift Sub
-Twitch.on('subgift', async (channel, username, _streakMonths, recipient, _methods, tags) => {
-  const totalGiftMonths = Number(tags?.['msg-param-gift-months']) || 1;
+Twitch.on('subgift', async (channel, username, streakMonths, recipient, methods, tags) => {
+  const totalGiftMonths = Number(tags?.['msg-param-months']) || 1;
+  const totalGiftsByUser = Number(tags?.['msg-param-sender-count']) || 0;
+  const embed = `= ${username} Gifted a Sub =\n` +
+    `[${recipient}] :: ${totalGiftMonths} months total`;
+
   try {
-    await streamChannel.send(
-      '```asciidoc\n' +
-      `= ${username} Gifted a Sub =\n` +
-      `[${recipient}] :: ${totalGiftMonths} Months Total\n` +
-      '```'
-    );
-  } catch (e) {
-    console.error(e);
+    await streamChannel.send('```asciidoc\n' + embed + '\n```');
+  } catch (err) {
+    console.error(err);
   }
-  safeSay(channel, `🎁 ${username} just gifted a sub to ${recipient}! (${totalGiftMonths} months total) 💜`);
+
+  safeSay(
+    channel,
+    `🎁 ${username} just gifted a sub to ${recipient}! (${totalGiftMonths} month${totalGiftMonths > 1 ? 's' : ''
+    } total – ${totalGiftsByUser} gifts overall) 💜`
+  );
 });
 
 // Gift Bomb (multiple subs at once)
 Twitch.on('submysterygift', async (channel, username, giftSubCount, methods, tags) => {
+  const totalGiftsByUser = Number(tags?.['msg-param-sender-count']) || 0;
+  const embed = `= ${username} Dropped a Sub Bomb =\n` +
+    `Count :: ${giftSubCount} subs`;
+
   try {
-    await streamChannel.send(
-      '```asciidoc\n' +
-      `= ${username} Dropped a Sub Bomb =\n` +
-      `Count :: ${giftSubCount} subs\n` +
-      '```'
-    );
-  } catch (e) {
-    console.error(e);
+    await streamChannel.send('```asciidoc\n' + embed + '\n```');
+  } catch (err) {
+    console.error(err);
   }
-  safeSay(channel, `💣 ${username} just gifted ${giftSubCount} subs! Absolute legend 🙌`);
+
+  safeSay(
+    channel,
+    `💣 ${username} just gifted ${giftSubCount} subs! ` +
+    `Absolute legend 🙌 (Total gifts: ${totalGiftsByUser})`
+  );
 });
 
 // --------------------------
@@ -324,7 +331,7 @@ function onCooldown(key) {
 }
 
 Twitch.on('message', async (channel, userstate, message, self) => {
-   const bits = parseInt(userstate.bits || 0, 10);
+  const bits = parseInt(userstate.bits || 0, 10);
   if (bits > 0) {
     safeSay(channel, `🎉 ${userstate['display-name']} just cheered with ${bits} bits! Thank you 💜`);
   }
