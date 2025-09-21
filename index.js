@@ -224,6 +224,7 @@ Twitch.on('connected', () => {
 // Raided
 Twitch.on('raided', (channel, username, viewers) => {
   safeSay(channel, `⚡ RAID ALERT! ${username} and ${viewers} raiders are storming in! Welcome! 🚀`);
+  safeSay(channel, `/so ${username}`);
 });
 
 // Sub
@@ -372,7 +373,7 @@ Twitch.on('message', async (channel, userstate, message, self) => {
     '!website': () =>
       `@${userstate['display-name']}, Don't forget to add it to your bookmarks! https://pnkllr.net`,
 
-    '!socials': () => `Twitter: PnKllr || YouTube: PnKllr`,
+    '!socials': () => `Twitter: PnKllr || Tiktok: PnKllrTTV`,
 
     '!gt': () => `PnKllr || PnKllrTV`,
 
@@ -388,7 +389,10 @@ Twitch.on('message', async (channel, userstate, message, self) => {
         const res = await fetch(`https://tools.pnkllr.net/tools/clipit.php?channel=pnkllr&format=text`, { signal: controller.signal });
         clearTimeout(t);
         const text = await res.text();
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        if (text.toLowerCase().includes('error')) {
+          return `@${userstate['display-name']} failed to clip right now. Try again in a moment.`;
+        }
+        await new Promise(resolve => setTimeout(resolve, 5000));
         return `Heres the Plunkup @${userstate['display-name']} ${text}`;
       } catch (e) {
         return `@${userstate['display-name']} failed to clip right now. Try again in a moment.`;
