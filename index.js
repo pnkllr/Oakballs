@@ -1,107 +1,248 @@
-// index.js
-// Requires: discord.js ^13.8.0, tmi.js ^1.8.5, dotenv ^16, node-fetch ^2
+````js
+// ============================================================
+// Oakballs Twitch Bot
+// Step 1 - Clean Foundation
+//
+// Requires:
+//   discord.js ^13.8.0
+//   tmi.js ^1.8.5
+//   dotenv ^16
+//   node-fetch ^2
+//
+// ============================================================
+
 require('dotenv').config();
 
 const tmi = require('tmi.js');
 const { Client, Intents } = require('discord.js');
-const fs = require('fs/promises');
-const path = require('path');
 const fetch = require('node-fetch');
 
-// --------------------------
-// Config
-// --------------------------
-const GENERAL_CHANNEL_ID = process.env.GENERAL_CHANNEL_ID || '1403975109735350395';
-const STREAM_CHANNEL_ID = process.env.STREAM_CHANNEL_ID || '1406543359647940700';
-const TWITCH_CHANNEL_ID = process.env.TWITCH_CHANNEL_ID || '1415620399151976448';
+// ============================================================
+// CONFIG
+// ============================================================
 
-// Make CHANNEL_NAME robust (strip leading '#', allow fallback)
-const TWITCH_CHANNEL_NAME = ((process.env.CHANNEL_NAME || '').replace(/^#/, '').trim()) || 'pnkllr';
-const TWITCH_CHANNEL = `#${TWITCH_CHANNEL_NAME}`;
+const config = {
+  discord: {
+    token: process.env.DISCORD_BOT_TOKEN,
 
-const DATA_FILE = path.resolve(__dirname, 'values.json');
-const BLOCKED_WORDS = ['f4f', 'follow me'];
+    channels: {
+      general: process.env.GENERAL_CHANNEL_ID || '1403975109735350395',
+      stream: process.env.STREAM_CHANNEL_ID || '1406543359647940700',
+      twitchChat: process.env.TWITCH_CHANNEL_ID || '1415620399151976448'
+    }
+  },
 
-// --------------------------
-// Persistent Counters (with simple write queue)
-// --------------------------
-let data = { dead: 0, fall: 0 };
-let _writeInFlight = Promise.resolve();
+  twitch: {
+    channel: (
+      process.env.CHANNEL_NAME || 'pnkllr'
+    )
+      .replace(/^#/, '')
+      .trim()
+      .toLowerCase(),
 
-async function loadData() {
-  try {
-    const raw = await fs.readFile(DATA_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.dead === 'number') data.dead = parsed.dead;
-    if (typeof parsed.fall === 'number') data.fall = parsed.fall;
-  } catch {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    username: process.env.BOT_USERNAME,
+    oauth: process.env.BOT_OAUTH,
+
+    clientId: process.env.TWITCH_CLIENT_ID,
+    clientSecret: process.env.TWITCH_CLIENT_SECRET,
+
+    url: 'https://twitch.tv/pnkllr'
+  },
+
+  discordInvite: process.env.DISCORD_INVITE || '',
+
+  bot: {
+    commandPrefix: '!',
+    commandCooldownMs: 3000
+  },
+
+  moderation: {
+    blockedWords: [
+      'f4f',
+      'follow me'
+    ]
+  },
+
+  timers: {
+    activity: 300_000,       // 5 minutes
+    colour: 300_000,        // 5 minutes
+    chat: 900_000,          // 15 minutes
+    greeting: 30 * 60_000   // 30 minutes
+  }
+};
+
+const TWITCH_CHANNEL = `#${config.twitch.channel}`;
+
+// Discord channels
+let generalChannel = null;
+let streamChannel = null;
+let chatChannel = null;
+
+// ============================================================
+// ENVIRONMENT VALIDATION
+// ============================================================
+
+function validateConfig() {
+  const required = [
+    ['DISCORD_BOT_TOKEN', config.discord.token],
+    ['BOT_USERNAME', config.twitch.username],
+    ['BOT_OAUTH', config.twitch.oauth],
+    ['TWITCH_CLIENT_ID', config.twitch.clientId],
+    ['TWITCH_CLIENT_SECRET', config.twitch.clientSecret]
+  ];
+
+  const missing = required
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(', ')}`
+    );
   }
 }
-function saveData(next = data) {
-  _writeInFlight = _writeInFlight.then(() =>
-    fs.writeFile(DATA_FILE, JSON.stringify(next, null, 2)).catch(err => {
-      console.error('Failed to write values.json:', err);
-    })
-  );
-  return _writeInFlight;
-}
 
-// --------------------------
-// Twitch Helix (for viewer count)
-// --------------------------
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
+// ============================================================
+// TWITCH HELIX API
+// ============================================================
 
-let _twitchAppToken = null;
-let _twitchAppTokenExpiry = 0;
+let twitchAppToken = null;
+let twitchAppTokenExpiry = 0;
 
 async function getTwitchAppToken() {
   const now = Date.now();
-  if (_twitchAppToken && now < _twitchAppTokenExpiry - 60_000) {
-    return _twitchAppToken; // not expiring within 60s
+
+  if (
+    twitchAppToken &&
+    now < twitchAppTokenExpiry - 60_000
+  ) {
+    return twitchAppToken;
   }
-  const url = `https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(TWITCH_CLIENT_ID)}&client_secret=${encodeURIComponent(TWITCH_CLIENT_SECRET)}&grant_type=client_credentials`;
-  const res = await fetch(url, { method: 'POST' });
-  if (!res.ok) throw new Error(`Twitch token HTTP ${res.status}`);
-  const data = await res.json();
-  _twitchAppToken = data.access_token;
-  _twitchAppTokenExpiry = Date.now() + (data.expires_in * 1000);
-  return _twitchAppToken;
+
+  const url =
+    'https://id.twitch.tv/oauth2/token' +
+    `?client_id=${encodeURIComponent(config.twitch.clientId)}` +
+    `&client_secret=${encodeURIComponent(config.twitch.clientSecret)}` +
+    '&grant_type=client_credentials';
+
+  const response = await fetch(url, {
+    method: 'POST'
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Twitch token HTTP ${response.status}`
+    );
+  }
+
+  const tokenData = await response.json();
+
+  twitchAppToken = tokenData.access_token;
+
+  twitchAppTokenExpiry =
+    Date.now() +
+    Number(tokenData.expires_in || 0) * 1000;
+
+  return twitchAppToken;
 }
 
-async function getViewerCount(loginName) {
+async function getViewerCount(loginName = config.twitch.channel) {
   try {
-    if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
-      // Missing creds; skip gracefully
+    if (
+      !config.twitch.clientId ||
+      !config.twitch.clientSecret
+    ) {
       return null;
     }
+
     const token = await getTwitchAppToken();
-    const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(loginName)}`, {
-      headers: {
-        'Client-ID': TWITCH_CLIENT_ID,
-        'Authorization': `Bearer ${token}`
+
+    const response = await fetch(
+      'https://api.twitch.tv/helix/streams' +
+      `?user_login=${encodeURIComponent(loginName)}`,
+      {
+        headers: {
+          'Client-ID': config.twitch.clientId,
+          'Authorization': `Bearer ${token}`
+        }
       }
-    });
-    if (res.status === 401) { // token invalid/expired; refresh once
-      _twitchAppToken = null;
-      return getViewerCount(loginName);
+    );
+
+    // Token expired or invalid.
+    // Clear it and try exactly once.
+    if (response.status === 401) {
+      twitchAppToken = null;
+      twitchAppTokenExpiry = 0;
+
+      const freshToken = await getTwitchAppToken();
+
+      const retryResponse = await fetch(
+        'https://api.twitch.tv/helix/streams' +
+        `?user_login=${encodeURIComponent(loginName)}`,
+        {
+          headers: {
+            'Client-ID': config.twitch.clientId,
+            'Authorization': `Bearer ${freshToken}`
+          }
+        }
+      );
+
+      if (!retryResponse.ok) {
+        throw new Error(
+          `Twitch streams retry HTTP ${retryResponse.status}`
+        );
+      }
+
+      const retryData = await retryResponse.json();
+
+      if (
+        retryData.data &&
+        retryData.data.length > 0
+      ) {
+        return Number(
+          retryData.data[0].viewer_count
+        ) || 0;
+      }
+
+      return 0;
     }
-    if (!res.ok) throw new Error(`Helix streams HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.data && json.data.length > 0) {
-      return Number(json.data[0].viewer_count) || 0;
+
+    if (!response.ok) {
+      throw new Error(
+        `Twitch streams HTTP ${response.status}`
+      );
     }
-    return 0; // offline
-  } catch (err) {
-    console.warn('getViewerCount error:', err?.message || err);
-    return null; // keep previous / don’t block
+
+    const json = await response.json();
+
+    if (
+      json.data &&
+      json.data.length > 0
+    ) {
+      return Number(
+        json.data[0].viewer_count
+      ) || 0;
+    }
+
+    // Stream is offline.
+    return 0;
+
+  } catch (error) {
+    console.warn(
+      '[Twitch API] getViewerCount:',
+      error.message
+    );
+
+    // null means the API failed.
+    // 0 means the stream is actually offline.
+    return null;
   }
 }
 
-// --------------------------
-// Discord (v13)
-// --------------------------
+// ============================================================
+// DISCORD
+// ============================================================
+
 const Discord = new Client({
   intents: [
     Intents.FLAGS.GUILDS,
@@ -109,521 +250,1334 @@ const Discord = new Client({
     Intents.FLAGS.GUILD_MESSAGES,
     Intents.FLAGS.DIRECT_MESSAGES
   ],
-  partials: ['CHANNEL'] // for DMs if ever needed
+
+  partials: [
+    'CHANNEL'
+  ]
 });
 
-// ---------- Activity Rotation ----------
+// ------------------------------------------------------------
+// Discord Activity
+// ------------------------------------------------------------
+
 async function setDiscordActivity() {
-  const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
-
-  let activity;
-
-  if (viewers === null) {
-    // fallback when API fails
-    activity = {
-      name: 'TTV: PnKllr',
-      type: 'STREAMING',
-      url: 'https://twitch.tv/pnkllr'
-    };
-  } else if (viewers < 1) {
-    // case: nobody watching
-    activity = {
-      name: 'waiting for viewers…',
-      type: 'WATCHING'
-    };
-  } else {
-    // case: 1+ viewers
-    activity = {
-      name: `TTV: PnKllr | ${viewers} viewer${viewers === 1 ? '' : 's'}`,
-      type: 'STREAMING',
-      url: 'https://twitch.tv/pnkllr'
-    };
-  }
-
   try {
+    const viewers = await getViewerCount();
+
+    let activity;
+
+    if (viewers === null) {
+      activity = {
+        name: 'TTV: PnKllr',
+        type: 'STREAMING',
+        url: config.twitch.url
+      };
+    } else if (viewers < 1) {
+      activity = {
+        name: 'waiting for viewers...',
+        type: 'WATCHING'
+      };
+    } else {
+      activity = {
+        name:
+          `TTV: PnKllr | ${viewers} viewer` +
+          `${viewers === 1 ? '' : 's'}`,
+
+        type: 'STREAMING',
+        url: config.twitch.url
+      };
+    }
+
     Discord.user.setActivity(activity);
-  } catch (e) {
-    console.warn('setActivity error:', e?.message || e);
+
+  } catch (error) {
+    console.warn(
+      '[Discord] Activity update failed:',
+      error.message
+    );
   }
 }
 
-Discord.once('ready', async () => {
-  console.log(`Discord logged in as ${Discord.user.tag}`);
+// ------------------------------------------------------------
+// Discord Ready
+// ------------------------------------------------------------
 
-  // Initial status right away
+Discord.once('ready', async () => {
+  console.log(
+    `[Discord] Logged in as ${Discord.user.tag}`
+  );
+
+  await loadDiscordChannels();
+
   await setDiscordActivity();
 
-  // Rotate every 5 minutes
-  setInterval(setDiscordActivity, 300_000);
-
-  try {
-    generalChannel = await Discord.channels.fetch(GENERAL_CHANNEL_ID);
-  } catch (err) {
-    console.error('Failed to fetch track generral channel:', err);
-  }
-  try {
-    streamChannel = await Discord.channels.fetch(STREAM_CHANNEL_ID);
-  } catch (err) {
-    console.error('Failed to fetch track stream channel:', err);
-  }
-  try {
-    chatChannel = await Discord.channels.fetch(TWITCH_CHANNEL_ID);
-  } catch (err) {
-    console.error('Failed to fetch track chat channel:', err);
-  }
+  activityInterval = setInterval(
+    setDiscordActivity,
+    config.timers.activity
+  );
 });
 
-Discord.on('guildMemberAdd', async (member) => {
-  try {
-    await generalChannel.send('```diff\n+ ' + member.displayName + '```');
-  } catch (err) {
-    console.error('Error sending join message:', err);
-  }
-});
+// ------------------------------------------------------------
+// Discord Channel Loading
+// ------------------------------------------------------------
 
-Discord.on('guildMemberRemove', async (member) => {
+async function loadDiscordChannels() {
   try {
-    await generalChannel.send('```diff\n- ' + member.displayName + '```');
-  } catch (err) {
-    console.error('Error sending leave message:', err);
-  }
-});
+    generalChannel =
+      await Discord.channels.fetch(
+        config.discord.channels.general
+      );
 
-// --------------------------
-// Twitch (tmi.js v1.8.5)
-// --------------------------
+    console.log('[Discord] General channel loaded.');
+  } catch (error) {
+    console.error(
+      '[Discord] Failed to load general channel:',
+      error.message
+    );
+  }
+
+  try {
+    streamChannel =
+      await Discord.channels.fetch(
+        config.discord.channels.stream
+      );
+
+    console.log('[Discord] Stream channel loaded.');
+  } catch (error) {
+    console.error(
+      '[Discord] Failed to load stream channel:',
+      error.message
+    );
+  }
+
+  try {
+    chatChannel =
+      await Discord.channels.fetch(
+        config.discord.channels.twitchChat
+      );
+
+    console.log('[Discord] Twitch chat channel loaded.');
+  } catch (error) {
+    console.error(
+      '[Discord] Failed to load Twitch chat channel:',
+      error.message
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// Discord Join
+// ------------------------------------------------------------
+
+Discord.on(
+  'guildMemberAdd',
+  async member => {
+    if (!generalChannel) {
+      return;
+    }
+
+    try {
+      await generalChannel.send(
+        `\`\`\`diff\n+ ${member.displayName}\`\`\``
+      );
+    } catch (error) {
+      console.error(
+        '[Discord] Join message failed:',
+        error.message
+      );
+    }
+  }
+);
+
+// ------------------------------------------------------------
+// Discord Leave
+// ------------------------------------------------------------
+
+Discord.on(
+  'guildMemberRemove',
+  async member => {
+    if (!generalChannel) {
+      return;
+    }
+
+    try {
+      await generalChannel.send(
+        `\`\`\`diff\n- ${member.displayName}\`\`\``
+      );
+    } catch (error) {
+      console.error(
+        '[Discord] Leave message failed:',
+        error.message
+      );
+    }
+  }
+);
+
+// ============================================================
+// TWITCH
+// ============================================================
+
 const Twitch = new tmi.Client({
-  options: { debug: false, messagesLogLevel: 'info' },
-  connection: { reconnect: true, secure: true },
-  identity: {
-    username: process.env.BOT_USERNAME,
-    password: process.env.BOT_OAUTH
+  options: {
+    debug: false,
+    messagesLogLevel: 'info'
   },
-  channels: [TWITCH_CHANNEL] // must include '#'
+
+  connection: {
+    reconnect: true,
+    secure: true
+  },
+
+  identity: {
+    username: config.twitch.username,
+    password: config.twitch.oauth
+  },
+
+  channels: [
+    TWITCH_CHANNEL
+  ]
 });
 
-function safeSay(channel, msg) {
-  if (!msg) return;
-  return Twitch.say(channel, String(msg)).catch(err => {
-    console.warn('Twitch.say error:', err?.message || err);
-  });
+// ------------------------------------------------------------
+// Twitch Helpers
+// ------------------------------------------------------------
+
+function safeSay(channel, message) {
+  if (!message) {
+    return Promise.resolve();
+  }
+
+  return Twitch
+    .say(
+      channel || TWITCH_CHANNEL,
+      String(message)
+    )
+    .catch(error => {
+      console.warn(
+        '[Twitch] Failed to send message:',
+        error.message
+      );
+    });
 }
 
 function isModOrBroadcaster(userstate) {
-  const isMod = !!userstate.mod;
-  const isBroadcaster = userstate.badges && userstate.badges.broadcaster === '1';
-  const isOwner = TWITCH_CHANNEL_NAME.toLowerCase() === String(userstate.username || '').toLowerCase();
-  return isMod || isBroadcaster || isOwner;
+  const isMod = Boolean(userstate?.mod);
+
+  const isBroadcaster =
+    userstate?.badges?.broadcaster === '1';
+
+  const isOwner =
+    config.twitch.channel ===
+    String(userstate?.username || '')
+      .toLowerCase();
+
+  return (
+    isMod ||
+    isBroadcaster ||
+    isOwner
+  );
 }
 
-Twitch.on('connected', () => {
-  try { Twitch.raw('CAP REQ :twitch.tv/tags twitch.tv/commands'); } catch {/* noop */ }
-  console.log('Connected to Twitch.');
-});
+// ------------------------------------------------------------
+// Twitch Connection
+// ------------------------------------------------------------
 
-// Raided
-Twitch.on('raided', (channel, username, viewers) => {
-  safeSay(channel, `⚡ RAID ALERT! ${username} and ${viewers} raiders are storming in! Welcome! 🚀`);
-  safeSay(channel, `/so ${username}`);
-});
+Twitch.on(
+  'connected',
+  (address, port) => {
+    try {
+      Twitch.raw(
+        'CAP REQ :twitch.tv/tags twitch.tv/commands'
+      );
+    } catch {
+      // Ignore CAP errors.
+    }
 
-// Sub
-Twitch.on('subscription', async (channel, username, methods, message, userstate) => {
-  const isPrime = methods.prime || methods.plan === 'Prime';
-
-  const embedMsg = isPrime
-    ? `= New Prime Subscriber =\n[${username}]`
-    : `= New Subscriber =\n[${username}]`;
-
-  try {
-    await streamChannel.send('```asciidoc\n' + embedMsg + '\n```');
-  } catch (err) {
-    console.error(err);
+    console.log(
+      `[Twitch] Connected to ${address}:${port}`
+    );
   }
+);
 
-  const chatMsg = isPrime
-    ? `🎉 Thank you ${username} for subscribing with Prime! Enjoy the perks 🙌`
-    : `💜 Thank you ${username} for subscribing! Welcome aboard 🚀`;
+Twitch.on(
+  'disconnected',
+  reason => {
+    console.warn(
+      `[Twitch] Disconnected: ${reason || 'unknown reason'}`
+    );
+  }
+);
 
-  safeSay(channel, chatMsg);
-});
+Twitch.on(
+  'reconnect',
+  () => {
+    console.log('[Twitch] Reconnecting...');
+  }
+);
 
+// ============================================================
+// TWITCH EVENTS
+// ============================================================
+
+// ------------------------------------------------------------
+// Raid
+// ------------------------------------------------------------
+
+Twitch.on(
+  'raided',
+  (channel, username, viewers) => {
+    safeSay(
+      channel,
+      `⚡ RAID ALERT! ${username} and ${viewers} raiders are storming in! Welcome! 🚀`
+    );
+
+    safeSay(
+      channel,
+      `/so ${username}`
+    );
+  }
+);
+
+// ------------------------------------------------------------
+// New Subscription
+// ------------------------------------------------------------
+
+Twitch.on(
+  'subscription',
+  async (
+    channel,
+    username,
+    methods
+  ) => {
+    const isPrime =
+      methods?.prime ||
+      methods?.plan === 'Prime';
+
+    const embedMsg =
+      isPrime
+        ? `= New Prime Subscriber =\n[${username}]`
+        : `= New Subscriber =\n[${username}]`;
+
+    if (streamChannel) {
+      try {
+        await streamChannel.send(
+          '```asciidoc\n' +
+          embedMsg +
+          '\n```'
+        );
+      } catch (error) {
+        console.error(
+          '[Discord] Subscription message failed:',
+          error.message
+        );
+      }
+    }
+
+    const chatMsg =
+      isPrime
+        ? `🎉 Thank you ${username} for subscribing with Prime! Enjoy the perks 🙌`
+        : `💜 Thank you ${username} for subscribing! Welcome aboard 🚀`;
+
+    safeSay(channel, chatMsg);
+  }
+);
+
+// ------------------------------------------------------------
 // Resub
-Twitch.on('resub', async (channel, username, months, message, tags, methods) => {
-  const m = Number(tags?.['msg-param-cumulative-months']) || Number(months) || 0;
-  const isPrime = methods.prime || methods.plan === 'Prime';
+// ------------------------------------------------------------
 
-  const body = `= x${m} Month ${isPrime ? 'Prime ' : ''}Subscriber =\n` +
-    `[${username}] :: ${message || ''}`;
-
-  try {
-    await streamChannel.send('```asciidoc\n' + body + '\n```');
-  } catch (err) { console.error(err); }
-
-  const chatMsg = isPrime
-    ? `🔥 ${username} has resubscribed with Prime for ${m} months! Thank you 🙏`
-    : `💎 ${username} resubbed for ${m} months! Absolute legend 💜`;
-
-  safeSay(channel, chatMsg);
-});
-
-
-// Single Gift Sub
-Twitch.on('subgift', async (channel, username, streakMonths, recipient, methods, tags) => {
-  const totalGiftMonths = Number(tags?.['msg-param-months']) || 1;
-  const totalGiftsByUser = Number(tags?.['msg-param-sender-count']) || 0;
-  const embed = `= ${username} Gifted a Sub =\n` +
-    `[${recipient}] :: ${totalGiftMonths} months total`;
-
-  try {
-    await streamChannel.send('```asciidoc\n' + embed + '\n```');
-  } catch (err) {
-    console.error(err);
-  }
-
-  safeSay(
+Twitch.on(
+  'resub',
+  async (
     channel,
-    `🎁 ${username} just gifted a sub to ${recipient}! (${totalGiftMonths} month${totalGiftMonths > 1 ? 's' : ''
-    } total – ${totalGiftsByUser} gifts overall) 💜`
-  );
-});
+    username,
+    months,
+    message,
+    tags,
+    methods
+  ) => {
+    const totalMonths =
+      Number(
+        tags?.['msg-param-cumulative-months']
+      ) ||
+      Number(months) ||
+      0;
 
-// Gift Bomb (multiple subs at once)
-Twitch.on('submysterygift', async (channel, username, giftSubCount, methods, tags) => {
-  const totalGiftsByUser = Number(tags?.['msg-param-sender-count']) || 0;
-  const embed = `= ${username} Dropped a Sub Bomb =\n` +
-    `Count :: ${giftSubCount} subs`;
+    const isPrime =
+      methods?.prime ||
+      methods?.plan === 'Prime';
 
-  try {
-    await streamChannel.send('```asciidoc\n' + embed + '\n```');
-  } catch (err) {
-    console.error(err);
+    const body =
+      `= x${totalMonths} Month ` +
+      `${isPrime ? 'Prime ' : ''}` +
+      `Subscriber =\n` +
+      `[${username}] :: ${message || ''}`;
+
+    if (streamChannel) {
+      try {
+        await streamChannel.send(
+          '```asciidoc\n' +
+          body +
+          '\n```'
+        );
+      } catch (error) {
+        console.error(
+          '[Discord] Resub message failed:',
+          error.message
+        );
+      }
+    }
+
+    const chatMsg =
+      isPrime
+        ? `🔥 ${username} has resubscribed with Prime for ${totalMonths} months! Thank you 🙏`
+        : `💎 ${username} resubbed for ${totalMonths} months! Absolute legend 💜`;
+
+    safeSay(channel, chatMsg);
   }
+);
 
-  safeSay(
+// ------------------------------------------------------------
+// Gift Sub
+// ------------------------------------------------------------
+
+Twitch.on(
+  'subgift',
+  async (
     channel,
-    `💣 ${username} just gifted ${giftSubCount} subs! ` +
-    `Absolute legend 🙌 (Total gifts: ${totalGiftsByUser})`
-  );
-});
+    username,
+    streakMonths,
+    recipient,
+    methods,
+    tags
+  ) => {
+    const totalGiftMonths =
+      Number(
+        tags?.['msg-param-months']
+      ) || 1;
 
-// --------------------------
-// Chat moderation & commands
-// --------------------------
-const COMMAND_PREFIX = '!';
+    const totalGiftsByUser =
+      Number(
+        tags?.['msg-param-sender-count']
+      ) || 0;
+
+    const embed =
+      `= ${username} Gifted a Sub =\n` +
+      `[${recipient}] :: ${totalGiftMonths} months total`;
+
+    if (streamChannel) {
+      try {
+        await streamChannel.send(
+          '```asciidoc\n' +
+          embed +
+          '\n```'
+        );
+      } catch (error) {
+        console.error(
+          '[Discord] Gift sub message failed:',
+          error.message
+        );
+      }
+    }
+
+    safeSay(
+      channel,
+      `🎁 ${username} just gifted a sub to ${recipient}! ` +
+      `(${totalGiftMonths} month${totalGiftMonths > 1 ? 's' : ''} total - ` +
+      `${totalGiftsByUser} gifts overall) 💜`
+    );
+  }
+);
+
+// ------------------------------------------------------------
+// Gift Bomb
+// ------------------------------------------------------------
+
+Twitch.on(
+  'submysterygift',
+  async (
+    channel,
+    username,
+    giftSubCount,
+    methods,
+    tags
+  ) => {
+    const totalGiftsByUser =
+      Number(
+        tags?.['msg-param-sender-count']
+      ) || 0;
+
+    const embed =
+      `= ${username} Dropped a Sub Bomb =\n` +
+      `Count :: ${giftSubCount} subs`;
+
+    if (streamChannel) {
+      try {
+        await streamChannel.send(
+          '```asciidoc\n' +
+          embed +
+          '\n```'
+        );
+      } catch (error) {
+        console.error(
+          '[Discord] Sub bomb message failed:',
+          error.message
+        );
+      }
+    }
+
+    safeSay(
+      channel,
+      `💣 ${username} just gifted ${giftSubCount} subs! ` +
+      `Absolute legend 🙌 ` +
+      `(Total gifts: ${totalGiftsByUser})`
+    );
+  }
+);
+
+// ============================================================
+// COMMANDS
+// ============================================================
+
 const commandCooldowns = new Map();
-const COOLDOWN_MS = 3000;
 
 function onCooldown(key) {
   const now = Date.now();
-  const until = commandCooldowns.get(key) || 0;
-  if (until > now) return true;
-  commandCooldowns.set(key, now + COOLDOWN_MS);
+
+  const cooldownUntil =
+    commandCooldowns.get(key) || 0;
+
+  if (cooldownUntil > now) {
+    return true;
+  }
+
+  commandCooldowns.set(
+    key,
+    now + config.bot.commandCooldownMs
+  );
+
   return false;
 }
 
-Twitch.on('message', async (channel, userstate, message, self) => {
-  const bits = parseInt(userstate.bits || 0, 10);
-  if (bits > 0) {
-    safeSay(channel, `🎉 ${userstate['display-name']} just cheered with ${bits} bits! Thank you 💜`);
-  }
+// ------------------------------------------------------------
+// Command Definitions
+// ------------------------------------------------------------
 
-  try {
-    await chatChannel.send(
-      '```asciidoc\n' +
-      `[${userstate['display-name']}] :: ${message}\n` +
-      '```'
-    );
-  } catch (e) { console.error(e); }
-  if (self) return;
+const commands = {
 
-  PersonalGreet(Twitch, channel, userstate?.username, 'message');
+  '!commands': () =>
+    '[ !discord | !website | !socials | !gt | !tools | !lurk | !clipit | !wickd | !so ]',
 
-  const lower = (message || '').trim().toLowerCase();
+  '!discord': ({ userstate }) =>
+    `@${userstate['display-name']}, This is the server you're looking for ${config.discordInvite}`,
 
-  // greetings
-  if (lower === 'hello') return safeSay(channel, `@${userstate['display-name']}, hey there!`);
-  if (lower === 'back') return safeSay(channel, `@${userstate['display-name']}, welcome back`);
-  if (lower === '^') return safeSay(channel, '^');
+  '!website': ({ userstate }) =>
+    `@${userstate['display-name']}, Don't forget to add it to your bookmarks! https://pnkllr.net`,
 
-  // blocked words
-  if (BLOCKED_WORDS.some(w => lower.includes(w))) {
-    safeSay(channel, `@${userstate.username}, sorry your message contained a no no`);
+  '!socials': () =>
+    'Twitter: PnKllr || Tiktok: PnKllrTTV',
+
+  '!gt': () =>
+    'PnKllr || PnKllrTV',
+
+  '!tools': () =>
+    'Need some tools for your stream? Clip command, chat overlay? Check out https://tools.pnkllr.net',
+
+  '!lurk': ({ userstate }) =>
+    `@${userstate['display-name']}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`,
+
+  '!clipit': async ({ userstate }) => {
     try {
-      await Twitch.deletemessage(channel, userstate.id);
-    } catch (err) {
-      console.warn('Failed to delete message (permissions?):', err?.message || err);
+      const controller =
+        new AbortController();
+
+      const timeout =
+        setTimeout(
+          () => controller.abort(),
+          10_000
+        );
+
+      let response;
+
+      try {
+        response = await fetch(
+          `https://tools.pnkllr.net/tools/clipit.php?channel=${encodeURIComponent(config.twitch.channel)}&format=text`,
+          {
+            signal: controller.signal
+          }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const text =
+        await response.text();
+
+      if (
+        !response.ok ||
+        text.toLowerCase().includes('error')
+      ) {
+        return (
+          `@${userstate['display-name']} failed to clip right now. ` +
+          'Try again in a moment.'
+        );
+      }
+
+      await new Promise(
+        resolve => setTimeout(resolve, 5000)
+      );
+
+      return (
+        `Heres the Plunkup @${userstate['display-name']} ${text}`
+      );
+
+    } catch {
+      return (
+        `@${userstate['display-name']} failed to clip right now. ` +
+        'Try again in a moment.'
+      );
     }
-    return;
+  },
+
+  '!wickd': () =>
+    "Check out our range of Wick'd Geek gear at https://wickdgeek.com.",
+
+  '!shoutout': ({ args, privileged }) => {
+    if (!privileged) {
+      return null;
+    }
+
+    if (!args.length) {
+      return 'Who do you want to shout out?';
+    }
+
+    const target =
+      String(args[0])
+        .replace(/^@/, '')
+        .toLowerCase();
+
+    if (!/^[a-z0-9_]{1,25}$/.test(target)) {
+      return 'That does not look like a valid Twitch username.';
+    }
+
+    return (
+      `Go check out @${target} over at ` +
+      `https://twitch.tv/${target}`
+    );
   }
 
-  // commands
-  if (!lower.startsWith(COMMAND_PREFIX)) return;
+};
 
-  const [cmd, ...args] = message.trim().split(/\s+/);
-  const isPrivileged = isModOrBroadcaster(userstate);
+// Alias
+commands['!so'] = commands['!shoutout'];
 
-  const commands = {
-    '!commands': () =>
-      `[ !discord | !website | !socials | !gt  | !tools | !lurk | !clipit | !wickd | !dead | !fall | !countreset ]`,
+// ============================================================
+// CHAT
+// ============================================================
 
-    '!discord': () =>
-      `@${userstate['display-name']}, This is the server you're looking for ${process.env.DISCORD_INVITE}`,
+Twitch.on(
+  'message',
+  async (
+    channel,
+    userstate,
+    message,
+    self
+  ) => {
 
-    '!website': () =>
-      `@${userstate['display-name']}, Don't forget to add it to your bookmarks! https://pnkllr.net`,
+    // --------------------------------------------------------
+    // Ignore our own messages
+    // --------------------------------------------------------
 
-    '!socials': () => `Twitter: PnKllr || Tiktok: PnKllrTTV`,
+    if (self) {
+      return;
+    }
 
-    '!gt': () => `PnKllr || PnKllrTV`,
+    // --------------------------------------------------------
+    // Bits
+    // --------------------------------------------------------
 
-    '!tools': () => `Need some tools for your stream? Clip command, chat overlay? Check out https://tools.pnkllr.net`,
+    const bits =
+      Number.parseInt(
+        userstate.bits || 0,
+        10
+      );
 
-    '!lurk': () =>
-      `@${userstate['display-name']}, PopCorn Thanks for Lurking! We hope you enjoy your stay PopCorn`,
+    if (bits > 0) {
+      safeSay(
+        channel,
+        `🎉 ${userstate['display-name']} just cheered with ${bits} bits! Thank you 💜`
+      );
+    }
 
-    '!clipit': async () => {
+    // --------------------------------------------------------
+    // Twitch -> Discord Chat Relay
+    // --------------------------------------------------------
+
+    if (chatChannel) {
       try {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 10_000);
-        const res = await fetch(`https://tools.pnkllr.net/tools/clipit.php?channel=pnkllr&format=text`, { signal: controller.signal });
-        clearTimeout(t);
-        const text = await res.text();
-        if (text.toLowerCase().includes('error')) {
-          return `@${userstate['display-name']} failed to clip right now. Try again in a moment.`;
-        }
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return `Heres the Plunkup @${userstate['display-name']} ${text}`;
-      } catch (e) {
-        return `@${userstate['display-name']} failed to clip right now. Try again in a moment.`;
+        await chatChannel.send(
+          '```asciidoc\n' +
+          `[${userstate['display-name']}] :: ${message}\n` +
+          '```'
+        );
+      } catch (error) {
+        console.error(
+          '[Discord] Chat relay failed:',
+          error.message
+        );
       }
-    },
+    }
 
-    '!wickd': () =>
-      `Check out our range of Wick'd Geek gear at https://wickdgeek.com.`,
+    // --------------------------------------------------------
+    // Personal Greeting
+    // --------------------------------------------------------
 
-    '!dead': async () => {
-      if (!isPrivileged) return;
-      data.dead += 1;
-      await saveData();
-      return `PnKllr has died ${data.dead} time(s)`;
-    },
+    PersonalGreet(
+      Twitch,
+      channel,
+      userstate?.username,
+      'message'
+    );
 
-    '!fall': async () => {
-      if (!isPrivileged) return;
-      data.fall += 1;
-      await saveData();
-      return `PnKllr has fallen ${data.fall} time(s)`;
-    },
+    // --------------------------------------------------------
+    // Normalise message
+    // --------------------------------------------------------
 
-    '!countreset': async () => {
-      if (!isPrivileged) return;
-      data.dead = 0;
-      data.fall = 0;
-      await saveData();
-      return `Counters reset to 0!`;
-    },
+    const lower =
+      String(message || '')
+        .trim()
+        .toLowerCase();
 
-    '!shoutout': (args) => {
-      if (!isPrivileged) return;
-      if (!args.length) return 'Who do you want to shout out?';
-      const target = args[0].replace('@', ''); // strip @ if they type it
-      return `Go check out @${target} over at https://twitch.tv/${target}`;
-    },
-    '!so': (args) => commands['!shoutout'](args)
-  };
+    // --------------------------------------------------------
+    // Simple greetings
+    // --------------------------------------------------------
 
-  const fn = commands[cmd.toLowerCase()];
-  if (!fn) return;
+    if (lower === 'hello') {
+      return safeSay(
+        channel,
+        `@${userstate['display-name']}, hey there!`
+      );
+    }
 
-  const cdKey = `${cmd}|${userstate.username}`;
-  if (onCooldown(cdKey)) return;
+    if (lower === 'back') {
+      return safeSay(
+        channel,
+        `@${userstate['display-name']}, welcome back`
+      );
+    }
 
-  const out = await fn(args);
-  if (out) safeSay(channel, out);
-});
+    if (lower === '^') {
+      return safeSay(channel, '^');
+    }
 
-Twitch.on('join', (channel, username, self) => {
-  if (self) return;
-  // PersonalGreet(Twitch, channel, username, 'join');
-});
+    // --------------------------------------------------------
+    // Moderation
+    // --------------------------------------------------------
 
-// --------------------------
-// Personalized Greetings (robust)
-// --------------------------
+    if (
+      config.moderation.blockedWords.some(
+        word => lower.includes(word)
+      )
+    ) {
+      safeSay(
+        channel,
+        `@${userstate.username}, sorry your message contained a no no`
+      );
 
-function normUser(u) {
-  return String(u || '').trim().replace(/^@/, '').toLowerCase();
+      try {
+        await Twitch.deletemessage(
+          channel,
+          userstate.id
+        );
+      } catch (error) {
+        console.warn(
+          '[Twitch] Failed to delete message:',
+          error.message
+        );
+      }
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Commands
+    // --------------------------------------------------------
+
+    if (
+      !lower.startsWith(
+        config.bot.commandPrefix
+      )
+    ) {
+      return;
+    }
+
+    const parts =
+      String(message)
+        .trim()
+        .split(/\s+/);
+
+    const commandName =
+      parts.shift().toLowerCase();
+
+    const args = parts;
+
+    const command =
+      commands[commandName];
+
+    if (!command) {
+      return;
+    }
+
+    const privileged =
+      isModOrBroadcaster(userstate);
+
+    const cooldownKey =
+      `${commandName}|${userstate.username}`;
+
+    if (onCooldown(cooldownKey)) {
+      return;
+    }
+
+    try {
+      const output =
+        await command({
+          channel,
+          userstate,
+          args,
+          privileged
+        });
+
+      if (output) {
+        safeSay(
+          channel,
+          output
+        );
+      }
+
+    } catch (error) {
+      console.error(
+        `[Command] ${commandName} failed:`,
+        error
+      );
+
+      safeSay(
+        channel,
+        `@${userstate['display-name']}, something went wrong with that command.`
+      );
+    }
+  }
+);
+
+// ============================================================
+// PERSONALIZED GREETINGS
+// ============================================================
+
+function normUser(username) {
+  return String(username || '')
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase();
 }
 
 const RAW_SPECIAL_USERS = {
+
   therottenpeach: [
-    "Alright everyone, behave… mum’s here. {user}",
+    "Alright everyone, behave... mum's here. {user}",
     "Keeping us in line like always - good to have you back {user}.",
     "The group feels calmer when you walk in {user}"
   ],
+
   bigstona: [
     "Brad's here - controller locked and loaded. {user}",
     "Wouldn't be a proper stream without the gaming crew checking in. {user}",
     "Alright, who gave Brad another energy drink? {user}"
   ],
+
   andeey: [
     "Warning: sugar spike incoming. It's another stream with {user}!",
     "Thanks for rolling in, you always bring that extra bit of energy {user}.",
     "Another dose of chaos, courtesy of {user}."
   ],
+
   depemy: [
     "The veteran just clocked in - everyone else take notes. {user}",
     "Day-ones like you keep this whole thing real. Welcome back, mate. {user}",
     "One of the OGs has arrived - respect {user}!"
   ],
+
   yummynoodle: [
     "Hide your pets, {user} is here again.",
     "Good to see you, always bringing the laughs we need {user}.",
     "Uh oh, who let {user} back in the kitchen?"
   ]
+
 };
 
-// Lowercase keys for safety
-const SPECIAL_USERS = new Map(
-  Object.entries(RAW_SPECIAL_USERS).map(([k, v]) => [normUser(k), v])
-);
+const SPECIAL_USERS =
+  new Map(
+    Object.entries(
+      RAW_SPECIAL_USERS
+    ).map(
+      ([username, lines]) => [
+        normUser(username),
+        lines
+      ]
+    )
+  );
 
-const GREET_COOLDOWN_MS = 30 * 60_000; // 30 minutes
-const JOIN_DELAY_MS = 4000;            // tiny delay to smooth join spam
-const lastGreetAt = new Map();         // username -> timestamp
-const greetedThisSession = new Set();  // greeted since boot
+const GREET_COOLDOWN_MS =
+  config.timers.greeting;
 
-function pickRandom(arr) {
-  return arr[(Math.random() * arr.length) | 0];
+const JOIN_DELAY_MS = 4000;
+
+const lastGreetAt = new Map();
+const greetedThisSession = new Set();
+
+function pickRandom(array) {
+  return array[
+    Math.floor(
+      Math.random() * array.length
+    )
+  ];
 }
-function canGreet(u) {
+
+function canGreet(username) {
   const now = Date.now();
-  const last = lastGreetAt.get(u) || 0;
-  return (now - last) >= GREET_COOLDOWN_MS;
+
+  const last =
+    lastGreetAt.get(username) || 0;
+
+  return (
+    now - last >=
+    GREET_COOLDOWN_MS
+  );
 }
-function markGreeted(u) {
-  lastGreetAt.set(u, Date.now());
-  greetedThisSession.add(u);
+
+function markGreeted(username) {
+  lastGreetAt.set(
+    username,
+    Date.now()
+  );
+
+  greetedThisSession.add(
+    username
+  );
 }
-function formatLine(line, usernameAt) {
-  return String(line).replaceAll('{user}', usernameAt);
+
+function formatLine(
+  line,
+  username
+) {
+  return String(line)
+    .replaceAll(
+      '{user}',
+      username
+    );
 }
 
+function PersonalGreet(
+  client,
+  channel,
+  username,
+  reason = 'join'
+) {
+  const user =
+    normUser(username);
 
-function PersonalGreet(client, channel, username, reason = 'join') {
-  const u = normUser(username);
-  if (!u) return;
+  if (!user) {
+    return;
+  }
 
-  // ignore the bot itself
-  if (client?.getUsername && normUser(client.getUsername()) === u) return;
+  // Ignore the bot itself.
+  if (
+    client?.getUsername &&
+    normUser(
+      client.getUsername()
+    ) === user
+  ) {
+    return;
+  }
 
-  const lines = SPECIAL_USERS.get(u);
-  if (!lines || lines.length === 0) return;
+  const lines =
+    SPECIAL_USERS.get(user);
+
+  if (
+    !lines ||
+    lines.length === 0
+  ) {
+    return;
+  }
 
   if (reason === 'message') {
-    // greet on first message only, respect cooldown
-    if (greetedThisSession.has(u)) return;
-    if (!canGreet(u)) return;
-    const line = pickRandom(lines);
-    markGreeted(u);
-    return safeSay(channel, formatLine(line, `@${u}`));
+
+    if (
+      greetedThisSession.has(user)
+    ) {
+      return;
+    }
+
+    if (!canGreet(user)) {
+      return;
+    }
+
+    const line =
+      pickRandom(lines);
+
+    markGreeted(user);
+
+    return safeSay(
+      channel,
+      formatLine(
+        line,
+        `@${user}`
+      )
+    );
   }
 
   if (reason === 'join') {
-    if (greetedThisSession.has(u)) return;
-    if (!canGreet(u)) return;
+
+    if (
+      greetedThisSession.has(user)
+    ) {
+      return;
+    }
+
+    if (!canGreet(user)) {
+      return;
+    }
 
     setTimeout(() => {
-      if (greetedThisSession.has(u)) return;
-      if (!canGreet(u)) return;
-      const line = pickRandom(lines);
-      markGreeted(u);
-      safeSay(channel, formatLine(line, `@${u}`));
+
+      if (
+        greetedThisSession.has(user)
+      ) {
+        return;
+      }
+
+      if (!canGreet(user)) {
+        return;
+      }
+
+      const line =
+        pickRandom(lines);
+
+      markGreeted(user);
+
+      safeSay(
+        channel,
+        formatLine(
+          line,
+          `@${user}`
+        )
+      );
+
     }, JOIN_DELAY_MS);
   }
 }
 
-// --------------------------
-// Timers
-// --------------------------
-const colors = ["SpringGreen", "Blue", "Chocolate", "Red", "Coral", "Firebrick", "OrangeRed", "SeaGreen", "Green", "HotPink"];
+// ============================================================
+// TWITCH JOIN EVENT
+// ============================================================
+
+Twitch.on(
+  'join',
+  (channel, username, self) => {
+    if (self) {
+      return;
+    }
+
+    // Currently disabled.
+    // We greet on the user's first message instead.
+  }
+);
+
+// ============================================================
+// AUTOMATIC COLOUR
+// ============================================================
+
+const colours = [
+  'SpringGreen',
+  'Blue',
+  'Chocolate',
+  'Red',
+  'Coral',
+  'Firebrick',
+  'OrangeRed',
+  'SeaGreen',
+  'Green',
+  'HotPink'
+];
 
 function colorChange() {
-  const color = colors[(Math.random() * colors.length) | 0];
-  // send to joined channel
-  safeSay(process.env.CHANNEL_NAME, `/color ${color}`);
+  const colour =
+    pickRandom(colours);
+
+  safeSay(
+    TWITCH_CHANNEL,
+    `/color ${colour}`
+  );
 }
-setInterval(colorChange, 300_000); // 5 min
+
+// ============================================================
+// AUTOMATIC CHAT TIMERS
+// ============================================================
 
 const timerPools = {
+
   engagement: [
-    "Enjoying stream? Why not leave a follow or say something in chat 💬",
-    "Your support keeps the stream alive 💜 Even just hanging out means a lot!",
-    "If you’re enjoying the vibes, consider sharing the stream with a friend.",
-    "Lurkers welcome! Don’t be shy, drop a hello 👋",
-    "Got questions? Ask away — we love chatting with the community."
+    'Enjoying stream? Why not leave a follow or say something in chat 💬',
+    'Your support keeps the stream alive 💜 Even just hanging out means a lot!',
+    'If you’re enjoying the vibes, consider sharing the stream with a friend.',
+    'Lurkers welcome! Don’t be shy, drop a hello 👋',
+    'Got questions? Ask away - we love chatting with the community.'
   ],
+
   commands: [
-    "See something dumb on stream? Use !clipit to capture it!",
-    "To view a list of commands, use !commands",
-    "Curious about stats? Try !deaths or !falls 😅",
-    "Want a shoutout for your channel? Mods can use !so <name>"
+    'See something dumb on stream? Use !clipit to capture it!',
+    'To view a list of commands, use !commands',
+    'Want a shoutout for your channel? Mods can use !so <name>'
   ],
+
   socials: [
-    "Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT",
-    "Follow me on Twitter/X for updates: https://x.com/pnkllr",
+    'Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT',
+    'Follow me on Twitter/X for updates: https://x.com/pnkllr'
   ],
+
   promo: [
     "Check out our Wick'd Geek Collection! https://wickdgeek.com",
-    "Need tools for your stream? Head on over to https://tools.pnkllr.net",
-    "Grab some merch 👉 https://weartrulight.com"
+    'Need tools for your stream? Head on over to https://tools.pnkllr.net',
+    'Grab some merch 👉 https://weartrulight.com'
   ],
+
   fun: [
-    "Hydrate check! 💧 Drink some water while you’re watching.",
-    "Stretch break! 🧘‍♂️ We’ve been sitting too long.",
-    "Pro tip: clips are forever… embarrass me responsibly 😎",
-    "Chat messages power the stream — silence drains my energy bar ⚡"
+    'Hydrate check! 💧 Drink some water while you’re watching.',
+    'Stretch break! 🧘‍♂️ We’ve been sitting too long.',
+    'Pro tip: clips are forever... embarrass me responsibly 😎',
+    'Chat messages power the stream - silence drains my energy bar ⚡'
   ]
+
 };
 
-// Flatten into one pool each time
 function getRandomTimer() {
-  const categories = Object.keys(timerPools);
-  const cat = categories[(Math.random() * categories.length) | 0]; // pick random category
-  const messages = timerPools[cat];
-  return messages[(Math.random() * messages.length) | 0]; // pick random message
+  const categories =
+    Object.keys(timerPools);
+
+  const category =
+    pickRandom(categories);
+
+  const messages =
+    timerPools[category];
+
+  return pickRandom(messages);
 }
 
 async function discTimer() {
   try {
-    const viewers = await getViewerCount(TWITCH_CHANNEL_NAME).catch(() => null);
-    if (viewers && viewers > 0) {
-      const msg = getRandomTimer();
-      safeSay(process.env.CHANNEL_NAME, msg);
+    const viewers =
+      await getViewerCount();
+
+    if (
+      viewers !== null &&
+      viewers > 0
+    ) {
+      const message =
+        getRandomTimer();
+
+      safeSay(
+        TWITCH_CHANNEL,
+        message
+      );
+
+      console.log(
+        `[Timer] Sent: ${message}`
+      );
+
     } else {
-      console.log("Timer skipped — no viewers.");
+      console.log(
+        viewers === null
+          ? '[Timer] Skipped - Twitch API unavailable.'
+          : '[Timer] Skipped - stream offline.'
+      );
     }
-  } catch (err) {
-    console.error("Error running discTimer:", err);
+
+  } catch (error) {
+    console.error(
+      '[Timer] Failed:',
+      error.message
+    );
   }
 }
 
-setInterval(discTimer, 900_000); // every 15 min
-// --------------------------
-// Boot & Shutdown
-// --------------------------
-(async function main() {
-  await loadData();
+// ============================================================
+// INTERVALS
+// ============================================================
 
-  await Promise.allSettled([
-    Discord.login(process.env.DISCORD_BOT_TOKEN),
-    Twitch.connect()
-  ]);
+let activityInterval = null;
+let colourInterval = null;
+let chatTimerInterval = null;
 
-  process.on('SIGINT', async () => {
-    console.log('Shutting down...');
-    try { await saveData(); } catch { }
-    process.exit(0);
-  });
-})();
+// ============================================================
+// STARTUP
+// ============================================================
+
+async function start() {
+  console.log('');
+  console.log('================================');
+  console.log('       Oakballs Twitch Bot');
+  console.log('================================');
+  console.log('');
+
+  validateConfig();
+
+  console.log(
+    `[Config] Twitch channel: ${TWITCH_CHANNEL}`
+  );
+
+  const results =
+    await Promise.allSettled([
+      Discord.login(
+        config.discord.token
+      ),
+
+      Twitch.connect()
+    ]);
+
+  const discordResult =
+    results[0];
+
+  const twitchResult =
+    results[1];
+
+  if (
+    discordResult.status === 'fulfilled'
+  ) {
+    console.log(
+      '[Startup] Discord connection successful.'
+    );
+  } else {
+    console.error(
+      '[Startup] Discord connection failed:',
+      discordResult.reason
+    );
+  }
+
+  if (
+    twitchResult.status === 'fulfilled'
+  ) {
+    console.log(
+      '[Startup] Twitch connection successful.'
+    );
+  } else {
+    console.error(
+      '[Startup] Twitch connection failed:',
+      twitchResult.reason
+    );
+  }
+
+  colourInterval =
+    setInterval(
+      colorChange,
+      config.timers.colour
+    );
+
+  chatTimerInterval =
+    setInterval(
+      discTimer,
+      config.timers.chat
+    );
+
+  console.log('');
+  console.log(
+    '[Startup] Bot initialisation complete.'
+  );
+  console.log('');
+}
+
+// ============================================================
+// SHUTDOWN
+// ============================================================
+
+let shuttingDown = false;
+
+async function shutdown(signal) {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+
+  console.log('');
+  console.log(
+    `[Shutdown] Received ${signal}.`
+  );
+
+  if (activityInterval) {
+    clearInterval(activityInterval);
+  }
+
+  if (colourInterval) {
+    clearInterval(colourInterval);
+  }
+
+  if (chatTimerInterval) {
+    clearInterval(chatTimerInterval);
+  }
+
+  try {
+    await Twitch.disconnect();
+
+    console.log(
+      '[Shutdown] Twitch disconnected.'
+    );
+  } catch (error) {
+    console.warn(
+      '[Shutdown] Twitch disconnect failed:',
+      error.message
+    );
+  }
+
+  try {
+    Discord.destroy();
+
+    console.log(
+      '[Shutdown] Discord disconnected.'
+    );
+  } catch (error) {
+    console.warn(
+      '[Shutdown] Discord disconnect failed:',
+      error.message
+    );
+  }
+
+  console.log(
+    '[Shutdown] Goodbye.'
+  );
+
+  process.exit(0);
+}
+
+process.on(
+  'SIGINT',
+  () => shutdown('SIGINT')
+);
+
+process.on(
+  'SIGTERM',
+  () => shutdown('SIGTERM')
+);
+
+// ============================================================
+// START
+// ============================================================
+
+start().catch(error => {
+  console.error('');
+  console.error(
+    '[FATAL] Bot failed to start:'
+  );
+  console.error(error);
+  console.error('');
+
+  process.exit(1);
+});
+````
