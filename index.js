@@ -1,4 +1,3 @@
-````js
 // ============================================================
 // Oakballs Twitch Bot
 // Step 1 - Clean Foundation
@@ -1580,4 +1579,3 @@ start().catch(error => {
 
   process.exit(1);
 });
-````
