@@ -63,10 +63,15 @@ const config = {
   },
 
   timers: {
-    activity: 300_000,       // 5 minutes
-    colour: 300_000,        // 5 minutes
-    chat: 900_000,          // 15 minutes
-    greeting: 30 * 60_000   // 30 minutes
+    activity: 300_000,          // 5 minutes
+    colour: 300_000,            // 5 minutes
+  
+    chat: {
+      enabled: true,
+      interval: 12 * 60_000     // 12 minutes
+    },
+  
+    greeting: 30 * 60_000
   }
 };
 
@@ -532,7 +537,12 @@ Twitch.on(
 
     safeSay(
       channel,
-      `/so ${username}`
+      `/shoutout ${username}`
+    );
+
+    safeSay(
+      channel,
+      `!so ${username}`
     );
   }
 );
@@ -1083,32 +1093,82 @@ const RAW_SPECIAL_USERS = {
   therottenpeach: [
     "Alright everyone, behave... mum's here. {user}",
     "Keeping us in line like always - good to have you back {user}.",
-    "The group feels calmer when you walk in {user}"
+    "The group feels calmer when you walk in {user}.",
+    "Look who's arrived to make sure we're behaving ourselves. Welcome back {user}!",
+    "Mum has entered the chat. Everyone act normal! {user}",
+    "Uh oh... the responsible one is here. Welcome back {user}!",
+    "Everyone behave yourselves, {user} is watching 👀",
+    "Welcome back {user}! Now we might actually have some adult supervision.",
+    "There she is! The unofficial mum of the chat has arrived {user} ❤️",
+    "Good to see you again {user}. You keeping these idiots under control?"
   ],
 
   bigstona: [
     "Brad's here - controller locked and loaded. {user}",
     "Wouldn't be a proper stream without the gaming crew checking in. {user}",
-    "Alright, who gave Brad another energy drink? {user}"
+    "Alright, who gave Brad another energy drink? {user}",
+    "Look who finally showed up! Welcome back {user}!",
+    "Brad has entered the chat - somebody hide the spare controllers. {user}",
+    "The gaming department has arrived. Welcome back {user}!",
+    "Everyone make some room, Brad's here! {user}",
+    "There he is! Ready to cause some gaming-related trouble, {user}?",
+    "Welcome back {user} - the controller is waiting for you.",
+    "Brad has arrived. Now things are getting serious... or considerably less serious 😂"
   ],
 
   andeey: [
     "Warning: sugar spike incoming. It's another stream with {user}!",
     "Thanks for rolling in, you always bring that extra bit of energy {user}.",
-    "Another dose of chaos, courtesy of {user}."
+    "Another dose of chaos, courtesy of {user}.",
+    "Here comes the energy! Welcome back {user}!",
+    "Everybody brace yourselves - {user} has arrived!",
+    "The chaos levels just increased. Welcome back {user}!",
+    "Look who's here to turn the energy level up to 11 - {user}!",
+    "We were getting a little too calm... thankfully {user} is here.",
+    "Welcome back {user}! The stream just got a little louder 😂",
+    "And just like that, the energy has arrived. Good to see you {user}!"
   ],
 
   depemy: [
     "The veteran just clocked in - everyone else take notes. {user}",
     "Day-ones like you keep this whole thing real. Welcome back, mate. {user}",
-    "One of the OGs has arrived - respect {user}!"
+    "One of the OGs has arrived - respect {user}!",
+    "Look who's back! An absolute veteran of the community - {user}.",
+    "The OG has entered the chat. Welcome back {user}!",
+    "Years of experience have just walked through the door. Good to see you {user}!",
+    "Everybody pay attention - one of the originals is here. {user}",
+    "Welcome back, legend. The place wouldn't be the same without you {user}.",
+    "The veteran returns! Good to have you here again {user}.",
+    "One of the founding members of the chaos has arrived. Welcome back {user}!"
   ],
 
   yummynoodle: [
     "Hide your pets, {user} is here again.",
     "Good to see you, always bringing the laughs we need {user}.",
-    "Uh oh, who let {user} back in the kitchen?"
-  ]
+    "Uh oh, who let {user} back in the kitchen?",
+    "The noodle has returned! Welcome back {user} 🍜",
+    "Everybody hide the snacks - {user} is here.",
+    "Look who's back in the kitchen! Good to see you {user}.",
+    "The noodles are officially in the building. Welcome back {user}!",
+    "Uh oh... something tells me the kitchen isn't safe anymore. {user} is here.",
+    "Welcome back {user}! Please keep your hands away from the snacks.",
+    "The chef has arrived. Nobody knows what they're cooking, but we're concerned 😂"
+  ],
+
+  tegancarmody: [
+    "Tegan's here! What terrifying game are we getting into tonight? 👻",
+    "Welcome back {user}! Ready to voluntarily scare yourself again? 😂",
+    "The horror gamer has arrived. Things are about to get scary 👀",
+    "Look who's clocked off and joined us! Welcome back {user}!",
+    "Welcome back {user}! No healthcare emergencies in chat tonight please 😂",
+    "Tegan has arrived! Everyone behave, we've got healthcare staff in the building.",
+    "Tegan has connected successfully. Human verification still pending... 🤖",
+    "Welcome back {user}! The bot appears to be functioning normally today.",
+    "SYSTEM UPDATE: Tegan has entered the chat. No further information available. 🤖",
+    "Look who's here! Welcome back {user} 💜",
+    "Tegan has arrived! Good to see you {user}!",
+    "Welcome back {user}! Glad you could join us again 👋"
+  ],
 
 };
 
@@ -1323,87 +1383,355 @@ function colorChange() {
 
 const timerPools = {
 
-  engagement: [
-    'Enjoying stream? Why not leave a follow or say something in chat 💬',
-    'Your support keeps the stream alive 💜 Even just hanging out means a lot!',
-    'If you’re enjoying the vibes, consider sharing the stream with a friend.',
-    'Lurkers welcome! Don’t be shy, drop a hello 👋',
-    'Got questions? Ask away - we love chatting with the community.'
-  ],
+  engagement: {
+    weight: 5,
 
-  commands: [
-    'See something dumb on stream? Use !clipit to capture it!',
-    'To view a list of commands, use !commands',
-    'Want a shoutout for your channel? Mods can use !so <name>'
-  ],
+    messages: [
+      'Enjoying the stream? Drop a follow and come hang out with us again 💜',
+      'Lurkers are always welcome here 👀 But if you feel like chatting, say hello!',
+      'Enjoying the vibes? Say something in chat - we dont bite... usually 😈',
+      'Got a question? Ask away! Chat is always open 💬',
+      'If youre having a good time, sharing the stream with a friend helps more than you think 💜',
+      'Welcome to the stream! Grab a drink, get comfortable and enjoy the chaos 🍻',
+      'If youre new here, welcome! Feel free to say hello and introduce yourself 👋',
+      'Chat is always better with you in it - dont be afraid to jump into the conversation 💬',
+      'Having a good time? A follow is free and helps support the stream ❤️',
+      'Enjoying the chaos? Stick around and see what happens next 👀',
+      'Whether youre chatting or lurking, thanks for hanging out with us today 💜',
+      'If youre enjoying the stream, let me know what youre watching from chat!',
+      'Found the stream by accident? You might as well stick around now 😈',
+      'Make yourself comfortable - youre part of the community while youre here 💜',
+      'Dont just watch the chaos - become part of it! Jump into chat 👀',
+      'If youve been lurking for a while, this is your official invitation to say hello 👋',
+      'Every viewer helps keep the stream going - thanks for being here 💜',
+      'Enjoying the stream? Tell chat what youre up to today!',
+      'The more people talking in chat, the more interesting things get. So speak up! 💬',
+      'Thanks for spending some of your time with us today. It genuinely means a lot 💜'
+    ]
+  },
 
-  socials: [
-    'Continue the conversation over on Discord! https://discord.gg/nth7y8TqMT',
-    'Follow me on Twitter/X for updates: https://x.com/pnkllr'
-  ],
+  commands: {
+    weight: 3,
 
-  promo: [
-    "Check out our Wick'd Geek Collection! https://wickdgeek.com",
-    'Need tools for your stream? Head on over to https://tools.pnkllr.net',
-    'Grab some merch 👉 https://weartrulight.com'
-  ],
+    messages: [
+      'Need to know what the bot can do? Use !commands',
+      'See something worth keeping forever? Use !clipit to grab a clip!',
+      'Mods can give channels a shoutout with !so <name>',
+      'Want to know what commands are available? Try !commands',
+      'Want to share the stream? Use !discord to grab the community Discord!',
+      'Need a clip? !clipit has you covered!',
+      'Curious what commands are available? Hit !commands and have a look 👀',
+      'Want to check out the stream tools? Try !tools',
+      'Found another streamer you want to support? Mods can use !so <name>',
+      'Want to lurk? Use !lurk and let us know youre still around 👀',
+      'Looking for the full list of bot commands? !commands is your friend.',
+      'See something hilarious? Dont forget to use !clipit before the moment is gone!'
+    ]
+  },
 
-  fun: [
-    'Hydrate check! 💧 Drink some water while you’re watching.',
-    'Stretch break! 🧘‍♂️ We’ve been sitting too long.',
-    'Pro tip: clips are forever... embarrass me responsibly 😎',
-    'Chat messages power the stream - silence drains my energy bar ⚡'
-  ]
+  socials: {
+    weight: 2,
+
+    messages: [
+      'Come hang out with the community on Discord! https://discord.gg/nth7y8TqMT',
+      'Want more PnKllr outside the stream? Follow along on Twitter/X: https://x.com/pnkllr',
+      'Keep up with the chaos outside Twitch - Twitter/X: https://x.com/pnkllr',
+      'Join the Discord and hang out with the community! https://discord.gg/nth7y8TqMT',
+      'Want to see more of what happens outside the stream? Follow me on TikTok! https://tiktok.com/@a.jmmw',
+      'TikTok has even more random PnKllr nonsense - come follow along! https://tiktok.com/@a.jmmw',
+      'Follow me on TikTok for more clips, chaos and random stuff! https://tiktok.com/@a.jmmw',
+      'Keep up with me outside Twitch - TikTok: https://tiktok.com/@a.jmmw',
+      'The community doesnt stop when the stream ends - join the Discord! https://discord.gg/nth7y8TqMT',
+      'Want to keep hanging out after stream? Join the Discord! https://discord.gg/nth7y8TqMT'
+    ]
+  },
+
+  promo: {
+    weight: 1,
+
+    messages: [
+      "Check out the Wick'd Geek Collection! https://wickdgeek.com",
+      'Looking for stream tools? Check out https://tools.pnkllr.net',
+      'Need some useful tools for your own stream? Have a look at https://tools.pnkllr.net',
+      'Want to support the stream? Check out the Wick\'d Geek Collection! https://wickdgeek.com',
+      'Looking for something different? Check out the Wick\'d Geek gear! https://wickdgeek.com'
+    ]
+  },
+
+  fun: {
+    weight: 4,
+
+    messages: [
+      'Hydration check 💧 Grab a drink!',
+      'Stretch check 🧘‍♂️ Weve been sitting here long enough.',
+      'Remember - clips are forever. Embarrass me responsibly 😎',
+      'Chat messages power the stream. Silence drains my energy bar ⚡',
+      'If the stream suddenly gets quiet, Im assuming everyone fell asleep 👀',
+      'Everyone take a drink - yes, this includes the lurkers 💧',
+      'Blink twice if youre still awake 👀',
+      'Chat, on a scale of 1 to chaos, how are we doing tonight?',
+      'I have absolutely no idea whats happening anymore, but Im glad youre here 😂',
+      'If something stupid happens, nobody saw anything. Unless someone clips it 👀',
+      'Current stream status: somehow still under control... probably.',
+      'Reminder: we are here for a good time, not a professional production 😎',
+      'Chat check - whos still awake?',
+      'If youve been here long enough, youre basically part of the furniture now.',
+      'Things were going suspiciously well... so naturally something is about to go wrong.',
+      'At this point Im convinced chat is secretly running the stream.',
+      'Somewhere out there, someone is watching this and thinking "what the hell did I find?" 😂',
+      'The plan was simple. Unfortunately, we started streaming.',
+      'Professional streamer by day, questionable decision maker by night.',
+      'If chaos was a Twitch category, wed be top of the directory.'
+    ]
+  },
+
+  community: {
+    weight: 3,
+
+    messages: [
+      'Big welcome to everyone hanging out tonight! 💜',
+      'Shoutout to the lurkers, chatters and everyone just chilling in the background 👋',
+      'This community is only as good as the people in it - thanks for being here 💜',
+      'Make sure you say hello to the people around you in chat!',
+      'New here? Stick around and get to know the community 👀',
+      'Regulars, lurkers and first-time viewers - youre all welcome here 💜',
+      'Chat is basically a bunch of strangers who decided to hang out together. I like it 😂',
+      'Thanks for making this little corner of Twitch a fun place to hang out.',
+      'If youre new, dont worry about fitting in - just jump into the conversation!',
+      'Remember to be good to each other. Were all here to have a good time 💜'
+    ]
+  },
+
+  pokemon: {
+    weight: 2,
+
+    messages: [
+      'Need your Pokemon fix? Check out the Pokedex over at https://profoak.net',
+      'Looking up a Pokemon? Professor Oak has you covered! https://profoak.net',
+      'Want to explore the Pokemon database? Head over to https://profoak.net',
+      'Your next Pokemon rabbit hole starts here 👀 https://profoak.net',
+      'Need Pokemon information? Check out the database at https://profoak.net',
+      'Got a Pokemon question? The database might have the answer! https://profoak.net',
+      'For all things Pokemon, check out Professor Oak: https://profoak.net'
+    ]
+  }
 
 };
 
-function getRandomTimer() {
+// ------------------------------------------------------------
+// Timer State
+// ------------------------------------------------------------
+
+let lastTimerCategory = null;
+let lastTimerMessage = null;
+let timerHistory = [];
+
+const MAX_TIMER_HISTORY = 5;
+
+// ------------------------------------------------------------
+// Weighted Category Selection
+// ------------------------------------------------------------
+
+function getWeightedCategory() {
+
   const categories =
-    Object.keys(timerPools);
+    Object.entries(timerPools)
+      .filter(
+        ([, pool]) =>
+          pool &&
+          Array.isArray(pool.messages) &&
+          pool.messages.length > 0 &&
+          Number(pool.weight) > 0
+      );
 
-  const category =
-    pickRandom(categories);
+  if (!categories.length) {
+    return null;
+  }
 
-  const messages =
-    timerPools[category];
+  // Avoid repeating the same category twice in a row.
+  const available =
+    categories.filter(
+      ([name]) =>
+        name !== lastTimerCategory
+    );
 
-  return pickRandom(messages);
+  const pool =
+    available.length
+      ? available
+      : categories;
+
+  const totalWeight =
+    pool.reduce(
+      (total, [, category]) =>
+        total + Number(category.weight),
+      0
+    );
+
+  let random =
+    Math.random() * totalWeight;
+
+  for (const [name, category] of pool) {
+
+    random -= Number(category.weight);
+
+    if (random <= 0) {
+      return name;
+    }
+  }
+
+  return pool[pool.length - 1][0];
 }
 
+// ------------------------------------------------------------
+// Message Selection
+// ------------------------------------------------------------
+
+function getTimerMessage(categoryName) {
+
+  const category =
+    timerPools[categoryName];
+
+  if (
+    !category ||
+    !Array.isArray(category.messages) ||
+    !category.messages.length
+  ) {
+    return null;
+  }
+
+  // Avoid recently used messages.
+  const available =
+    category.messages.filter(
+      message =>
+        !timerHistory.includes(message)
+    );
+
+  const pool =
+    available.length
+      ? available
+      : category.messages;
+
+  let message =
+    pickRandom(pool);
+
+  // Extra protection against immediate repetition.
+  if (
+    pool.length > 1 &&
+    message === lastTimerMessage
+  ) {
+    const alternatives =
+      pool.filter(
+        item =>
+          item !== lastTimerMessage
+      );
+
+    message =
+      pickRandom(alternatives);
+  }
+
+  return message;
+}
+
+// ------------------------------------------------------------
+// Get Next Timer Message
+// ------------------------------------------------------------
+
+function getNextTimerMessage() {
+
+  const category =
+    getWeightedCategory();
+
+  if (!category) {
+    return null;
+  }
+
+  const message =
+    getTimerMessage(category);
+
+  if (!message) {
+    return null;
+  }
+
+  lastTimerCategory =
+    category;
+
+  lastTimerMessage =
+    message;
+
+  timerHistory.push(message);
+
+  if (
+    timerHistory.length >
+    MAX_TIMER_HISTORY
+  ) {
+    timerHistory.shift();
+  }
+
+  return {
+    category,
+    message
+  };
+}
+
+// ------------------------------------------------------------
+// Automatic Chat Timer
+// ------------------------------------------------------------
+
 async function discTimer() {
+
   try {
+
     const viewers =
       await getViewerCount();
 
-    if (
-      viewers !== null &&
-      viewers > 0
-    ) {
-      const message =
-        getRandomTimer();
-
-      safeSay(
-        TWITCH_CHANNEL,
-        message
-      );
+    // Twitch API unavailable.
+    if (viewers === null) {
 
       console.log(
-        `[Timer] Sent: ${message}`
+        '[Timer] Skipped - Twitch API unavailable.'
       );
 
-    } else {
-      console.log(
-        viewers === null
-          ? '[Timer] Skipped - Twitch API unavailable.'
-          : '[Timer] Skipped - stream offline.'
-      );
+      return;
     }
 
+    // Stream offline.
+    if (viewers < 1) {
+
+      console.log(
+        '[Timer] Skipped - stream offline.'
+      );
+
+      return;
+    }
+
+    const timer =
+      getNextTimerMessage();
+
+    if (!timer) {
+
+      console.log(
+        '[Timer] Skipped - no timer messages available.'
+      );
+
+      return;
+    }
+
+    await safeSay(
+      TWITCH_CHANNEL,
+      timer.message
+    );
+
+    console.log(
+      `[Timer] [${timer.category}] ${timer.message}`
+    );
+
   } catch (error) {
+
     console.error(
       '[Timer] Failed:',
       error.message
     );
+
   }
 }
 
@@ -1479,17 +1807,30 @@ async function start() {
       config.timers.colour
     );
 
-  chatTimerInterval =
-    setInterval(
-      discTimer,
-      config.timers.chat
-    );
+  if (config.timers.chat.enabled) {
 
-  console.log('');
-  console.log(
-    '[Startup] Bot initialisation complete.'
-  );
-  console.log('');
+    chatTimerInterval =
+      setInterval(
+        discTimer,
+        config.timers.chat.interval
+      );
+  
+    console.log(
+      `[Timer] Chat timers enabled - every ${config.timers.chat.interval / 60_000} minutes.`
+    );
+  
+  } else {
+  
+    console.log(
+      '[Timer] Chat timers disabled.'
+    );
+  }
+  
+    console.log('');
+    console.log(
+      '[Startup] Bot initialisation complete.'
+    );
+    console.log('');
 }
 
 // ============================================================
